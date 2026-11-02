@@ -1093,14 +1093,16 @@ valid_config_version_date="2026-03-30"	# Configuration file valid date
 progverdate="$(echo $CurrentFilename | cut -d '_' -f4,5,6 | cut -d '.' -f1 | sed -r 's/[_]+/-/g')"
 progname="Multi-Report "$(echo $CurrentFilename | cut -d '_' -f3)" dtd:"
 
-physmem=$(midclt call system.info | jq -Mre '.physmem')
+physmem=$(free -b | awk '/^Mem:/{print $2}')
 if [[ $physmem -gt 1024 ]]; then physmem=$((( $physmem / 1024 ))); memunit="Ki"; fi
 if [[ $physmem -gt 1024 ]]; then physmem=$((( $physmem / 1024 ))); memunit="Mi"; fi
 if [[ $physmem -gt 1024 ]]; then physmem=$((( $physmem / 1024 ))); memunit="Gi"; fi
 if [[ $physmem -gt 1024 ]]; then physmem=$((( $physmem / 1024 ))); memunit="Ti"; fi
 if [[ $physmem -gt 1024 ]]; then physmem=$((( $physmem / 1024 ))); memunit="Pi"; fi
 physmem=$physmem$memunit
-uptime=$(midclt call system.info | jq -Mre '.uptime' | rev | cut -d "." -f2 | rev)
+uptime_raw=$(cat /proc/uptime 2>/dev/null | awk '{print int($1)}')
+uptime_days=$((uptime_raw / 86400))
+uptime_hours=$(((uptime_raw % 86400) / 3600))
 	
 if [[ $softver != "Linux" ]]; then
   top -d1 | head -n 7 > /tmp/memory_free.txt
