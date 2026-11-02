@@ -1074,7 +1074,7 @@ TrueNAS_Version_Names="26.10:Icefish,26.04:Halfmoon,25.10:Goldeye,25.04:Fangtoot
 
 ###### Auto-generated Parameters
 softver=$(uname -s)
-truenas_ver=$(cat /etc/version)
+truenas_ver=$(grep VERSION_ID /etc/os-release 2>/dev/null | cut -d\" -f2 | cut -d. -f1,2)
 testdata_path="data"
 Dump_Loop="0"
 re='^[0-9]+$'
@@ -1107,21 +1107,21 @@ uptime_hours=$(((uptime_raw % 86400) / 3600))
 if [[ $softver != "Linux" ]]; then
   top -d1 | head -n 7 > /tmp/memory_free.txt
   
-  if [[ "$(cat /etc/version | grep "FreeNAS")" ]]; then
-    programver=progname$progverdate" (FreeNAS "$(cat /etc/version | cut -d " " -f1 | sed 's/FreeNAS-//')")"
-    programver2="$(cat /etc/version | cut -d"-" -f1)"
-    programver3="$(cat /etc/version | cut -d " " -f1 | sed 's/FreeNAS-//')"
+  if [[ "$(grep VERSION_ID /etc/os-release 2>/dev/null)" ]]; then
+    programver=$progname$progverdate" (Ubuntu $(grep VERSION_ID /etc/os-release | cut -d\" -f2))"
+    programver2="$(grep VERSION_ID /etc/os-release | cut -d\" -f2 | cut -d. -f1,2)"
+    programver3="$(grep VERSION_ID /etc/os-release | cut -d\" -f2)"
   else
-    programver=$progname$progverdate" (TrueNAS Core "$(cat /etc/version | cut -d " " -f1 | sed 's/TrueNAS-//')")"
-    programver2="$(cat /etc/version | cut -d"-" -f1)_Core"
-    programver3="$(cat /etc/version | cut -d " " -f1 | sed 's/TrueNAS-//')"
+    programver=$progname$progverdate" (Ubuntu $(grep VERSION_ID /etc/os-release | cut -d\" -f2))"
+    programver2="$(grep VERSION_ID /etc/os-release | cut -d\" -f2 | cut -d. -f1,2)"
+    programver3="$(grep VERSION_ID /etc/os-release | cut -d\" -f2)"
   fi
   totalmem=$physmem
   freemem=$(top -d1 | head -n 7 | tail -4 | grep "Mem:" | awk '{printf $8}')"i"
   swapused="Swap Total: "$(top -d1 | head -n 7 | tail -4 | grep "Swap:" | awk '{printf $2}')"i"
   swapused=$swapused", Swap Free: "$(top -d1 | head -n 7 | tail -4 | grep "Swap:" | awk '{printf $4}')"i"
   programver4="Total Memory: "$totalmem", Free Memory: "$freemem", "$swapused"<br>System Uptime: "$uptime
-  truenas_ver=$(cat /etc/version | cut -d"-" -f2 | cut -d"." -f1)	# Provides a whole number like '13'
+  truenas_ver=$(grep VERSION_ID /etc/os-release 2>/dev/null | cut -d\" -f2 | cut -d. -f1)
 else
   free > /tmp/memory_free.txt			# Add this to the dump
   totalmem=$(free -h | grep "Mem:" | awk '{printf $2}')
@@ -1133,21 +1133,21 @@ else
   IFS=',' read -ra ADDR <<< "$TrueNAS_Version_Names"
 	for i in "${ADDR[@]}"; do
 		Ver_number="$(echo $i | cut -d':' -f 1 | cut -c1-5)"
-		truenas_ver_first_four=$(cat /etc/version | cut -c1-5)
+		truenas_ver_first_four=$(grep VERSION_ID /etc/os-release 2>/dev/null | cut -d\" -f2 | cut -c1-5)
 		if [[ "$Ver_number" == "$truenas_ver_first_four" ]]; then
 			truenas_ver_name="$(echo $i | cut -d':' -f 2)"
 		fi
 	done		
 		
   programver=$progname$progverdate" (TrueNAS SCALE - $truenas_ver_name $truenas_ver)"
-  programver2="TrueNAS_Scale_$(cat /etc/version | cut -d" " -f1)"
-  programver3="$(cat /etc/version)"
+  programver2="Ubuntu_$(grep VERSION_ID /etc/os-release | cut -d\" -f2 | cut -d. -f1,2)"
+  programver3="$(grep VERSION_ID /etc/os-release | cut -d\" -f2)"
   if [[ $swaptotal == "0B" ]]; then
     programver4="Total Memory: "$totalmem", Used Memory: "$usedmem", Free Memory: "$freemem"<br>System Uptime: "$uptime
   else
 	programver4="Total Memory: "$totalmem", Used Memory: "$usedmem", Free Memory: "$freemem", Swap Used: "$swapused"<br>System Uptime: "$uptime
   fi
-  truenas_ver=$(cat /etc/version | cut -d"-" -f1)	# Provides the entire version number like '24.10.0.2'
+  truenas_ver=$(grep VERSION_ID /etc/os-release 2>/dev/null | cut -d\" -f2)
 fi
 
 truenas_ver_major=$(echo $truenas_ver | cut -d"." -f1)
