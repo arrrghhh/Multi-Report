@@ -1093,14 +1093,14 @@ valid_config_version_date="2026-03-30"	# Configuration file valid date
 progverdate="$(echo $CurrentFilename | cut -d '_' -f4,5,6 | cut -d '.' -f1 | sed -r 's/[_]+/-/g')"
 progname="Multi-Report "$(echo $CurrentFilename | cut -d '_' -f3)" dtd:"
 
-physmem=$(echo "Ubuntu: no midclt" # Ubuntu skip '.physmem')
+physmem=$(midclt call system.info | jq -Mre '.physmem')
 if [[ $physmem -gt 1024 ]]; then physmem=$((( $physmem / 1024 ))); memunit="Ki"; fi
 if [[ $physmem -gt 1024 ]]; then physmem=$((( $physmem / 1024 ))); memunit="Mi"; fi
 if [[ $physmem -gt 1024 ]]; then physmem=$((( $physmem / 1024 ))); memunit="Gi"; fi
 if [[ $physmem -gt 1024 ]]; then physmem=$((( $physmem / 1024 ))); memunit="Ti"; fi
 if [[ $physmem -gt 1024 ]]; then physmem=$((( $physmem / 1024 ))); memunit="Pi"; fi
 physmem=$physmem$memunit
-uptime=$(echo "Ubuntu: no midclt" # Ubuntu skip '.uptime' | rev | cut -d "." -f2 | rev)
+uptime=$(midclt call system.info | jq -Mre '.uptime' | rev | cut -d "." -f2 | rev)
 	
 if [[ $softver != "Linux" ]]; then
   top -d1 | head -n 7 > /tmp/memory_free.txt
@@ -1948,12 +1948,12 @@ total_bays_count=$(grep -o "slot" "$disk_layout_json_file" | wc -l)
 lsscsi_line=0
 while [[ $lsscsi_line -lt $total_bays_count ]]; do
     # Read all old values
-    old_disk_layout_slot[lsscsi_line]=$(cat "$disk_layout_json_file" # Ubuntu skip '.bays['${lsscsi_line}'].slot | values')
-    old_disk_layout_addr[lsscsi_line]=$(cat "$disk_layout_json_file" # Ubuntu skip '.bays['${lsscsi_line}'].address | values')
-    old_disk_layout_serial[lsscsi_line]=$(cat "$disk_layout_json_file" # Ubuntu skip '.bays['${lsscsi_line}'].serial | values')
-    old_disk_layout_pool[lsscsi_line]=$(cat "$disk_layout_json_file" # Ubuntu skip '.bays['${lsscsi_line}'].pool | values')
-    old_disk_layout_color[lsscsi_line]=$(cat "$disk_layout_json_file" # Ubuntu skip '.bays['${lsscsi_line}'].drive_color | values')
-    old_disk_layout_temperature[lsscsi_line]=$(cat "$disk_layout_json_file" # Ubuntu skip '.bays['${lsscsi_line}'].drive_temp | values')
+    old_disk_layout_slot[lsscsi_line]=$(cat "$disk_layout_json_file" | jq -Mre '.bays['${lsscsi_line}'].slot | values')
+    old_disk_layout_addr[lsscsi_line]=$(cat "$disk_layout_json_file" | jq -Mre '.bays['${lsscsi_line}'].address | values')
+    old_disk_layout_serial[lsscsi_line]=$(cat "$disk_layout_json_file" | jq -Mre '.bays['${lsscsi_line}'].serial | values')
+    old_disk_layout_pool[lsscsi_line]=$(cat "$disk_layout_json_file" | jq -Mre '.bays['${lsscsi_line}'].pool | values')
+    old_disk_layout_color[lsscsi_line]=$(cat "$disk_layout_json_file" | jq -Mre '.bays['${lsscsi_line}'].drive_color | values')
+    old_disk_layout_temperature[lsscsi_line]=$(cat "$disk_layout_json_file" | jq -Mre '.bays['${lsscsi_line}'].drive_temp | values')
     
     # Create a fixed address-to-slot mapping from the old JSON
     local addr="${old_disk_layout_addr[lsscsi_line]}"
@@ -2466,7 +2466,7 @@ if [[ $Debug_Steps == "true" ]]; then echo "get_API_Drives_and_tar"; fi
     increment=0        # INCREMENT IS THE ACCESS TO THE FULL ARRAY, INCLUDING VIRTUAL AND CD DRIVES
     skip_drives_count=0
 
-    Drive_Disk_Query=$(echo "Ubuntu: no disk.query")
+    Drive_Disk_Query=$(midclt call disk.query)
 
     # 1. Get all API data in a variable, one call. -- Can we find API that says SMART Self-test is supported or not?  May need to use smartctl for one thing.
     #    `supports_smart:null`, maybe check if null and if so or `no`, use smartctl.
@@ -2486,10 +2486,10 @@ if [[ $Debug_Steps == "true" ]]; then echo "get_API_Drives_and_tar"; fi
 	mkdir "/tmp/multi_report_drive_data/SUBSYSTEM"
 	
     for i in $drives_name; do
-        drives_model[index]=$(echo $Drive_Disk_Query # Ubuntu skip '.'[$increment]'.model')
-        drives_name[index]=$(echo $Drive_Disk_Query # Ubuntu skip '.'[$increment]'.name')
-        drives_serial[index]=$(echo $Drive_Disk_Query # Ubuntu skip '.'[$increment]'.serial' | tr -d ' ')        # "td -d ' '" removes any white space from the serial number
-		drives_type[index]=$(echo $Drive_Disk_Query # Ubuntu skip '.'[$increment]'.type')
+        drives_model[index]=$(echo $Drive_Disk_Query | jq -Mre '.'[$increment]'.model')
+        drives_name[index]=$(echo $Drive_Disk_Query | jq -Mre '.'[$increment]'.name')
+        drives_serial[index]=$(echo $Drive_Disk_Query | jq -Mre '.'[$increment]'.serial' | tr -d ' ')        # "td -d ' '" removes any white space from the serial number
+		drives_type[index]=$(echo $Drive_Disk_Query | jq -Mre '.'[$increment]'.type')
 
     # WE NEED TO WEED OUT VIRTUAL AND CD DRIVES
         if [[ ${drives_model[$index]} == *"Virtual"* ]] || [[ ${drives_name[$index]} == "cd"* ]]; then
@@ -2504,7 +2504,7 @@ if [[ $Debug_Steps == "true" ]]; then echo "get_API_Drives_and_tar"; fi
             drives_name[index]="$(echo "nvme"$(echo ${drives_name[$index]} | sed -r 's#^nvme##' | cut -d 'n' -f 1))"
         fi
 
-        drives_subsystem[index]=$(echo $Drive_Disk_Query # Ubuntu skip '.'[$increment]'.subsystem')
+        drives_subsystem[index]=$(echo $Drive_Disk_Query | jq -Mre '.'[$increment]'.subsystem')
 		
         (( index ++ ))
         (( increment ++ ))
@@ -2844,9 +2844,9 @@ if [[ $Debug_Steps == "true" ]]; then echo "get_drive_serial_numbers_api" | tee 
 	api_drive_name=""
 	api_drive_serial_number=""
 	echo -n "Scanning Drives"
-	while [[ "$(echo "Ubuntu: no disk.query" | jq -r '.['$api_x'].name')" != "null" ]]; do
+	while [[ "$(midclt call disk.query | jq -r '.['$api_x'].name')" != "null" ]]; do
 		for api_temp_loop in $drive_id_data_temp; do
-			api_drive_name_test=$(echo "Ubuntu: no disk.query" | jq -r '.['$api_x'].name' | sed 's/nvd/nvme/g')
+			api_drive_name_test=$(midclt call disk.query | jq -r '.['$api_x'].name' | sed 's/nvd/nvme/g')
 			if [[ "$api_drive_name_test" == *"$api_temp_loop"* ]]; then
 				echo -n "."  # $api_drive_name_test
 				if [[ "$api_drive_name_test" == *"nvme"* ]]; then
@@ -2854,7 +2854,7 @@ if [[ $Debug_Steps == "true" ]]; then echo "get_drive_serial_numbers_api" | tee 
 				else
 					api_drive_name=$api_drive_name" "$api_drive_name_test
 				fi
-				api_drive_serial_number=$api_drive_serial_number" "$(echo "Ubuntu: no disk.query" | jq -r '.['$api_x'].serial')
+				api_drive_serial_number=$api_drive_serial_number" "$(midclt call disk.query | jq -r '.['$api_x'].serial')
 				continue
 			fi
 		done
@@ -2879,13 +2879,13 @@ if [[ $Debug_Steps == "true" ]]; then echo "sort_serial_number" | tee -a /tmp/mu
 	echo -n "Organizing Drive Test Order "
 
 	for api_drive_serial_order in $api_drive_serial_number; do
-		while [[ "$(echo "Ubuntu: no disk.query" | jq -r '.['$api_y'].name')" != "null" ]]; do		# Loop through all of the drives comparing S/N Order to drive
-			api_drive_serial_test=$(echo "Ubuntu: no disk.query" | jq -r '.['$api_y'].serial')
+		while [[ "$(midclt call disk.query | jq -r '.['$api_y'].name')" != "null" ]]; do		# Loop through all of the drives comparing S/N Order to drive
+			api_drive_serial_test=$(midclt call disk.query | jq -r '.['$api_y'].serial')
 			echo -n "."
 			Serial_Length=$(wc -c <<< "$api_drive_serial_test")					# Too short of a S/N = Not Valid Drive
 			if [[ $Serial_Length -gt 3 ]]; then
 				if [[ $api_drive_serial_order == $api_drive_serial_test ]]; then
-					api_drive_name_test=$(echo "Ubuntu: no disk.query" | jq -r '.['$api_y'].name')
+					api_drive_name_test=$(midclt call disk.query | jq -r '.['$api_y'].name')
 					if [[ $softver != "Linux" ]]; then
 						api_drive_name=$api_drive_name" "$api_drive_name_test" "
 					else
@@ -3885,7 +3885,7 @@ if [[ $Debug_Steps == "true" ]]; then echo "remove_duplicate" | tee -a /tmp/mult
 #		fi
 
 # Need to put simulated smartdata5 here.
-		dup_test="$(echo "${smartdata5}" # Ubuntu skip '.serial_number | values' | tr -d ' ')"  # Drive Serial Number
+		dup_test="$(echo "${smartdata5}" | jq -Mre '.serial_number | values' | tr -d ' ')"  # Drive Serial Number
 
 		# Get the gptid
 		if [ $softver != "Linux" ]; then
@@ -4670,8 +4670,8 @@ if [[ $Debug_Steps == "true" ]]; then echo "dump_drive_partition: $drive" | tee 
 		dev_args=($(smartctl --scan-open | grep -E "^/dev/${drive}[[:space:]]" | cut -d'#' -f1 | cut -d' ' -f2,3))
 		tempjson="$(smartctl "${dev_args[@]}" -x --json=u /dev/${drive})"
 		if [[ $(echo $tempjson) != *"Virtual"* ]]; then		# If the drive is Virtual, then skip it.
-			serial1="$(echo "${tempjson}" # Ubuntu skip '.serial_number | values' | tr -d ' ')"
-			rpm="$(echo "${tempjson}" # Ubuntu skip '.rotation_rate | values')"
+			serial1="$(echo "${tempjson}" | jq -Mre '.serial_number | values' | tr -d ' ')"
+			rpm="$(echo "${tempjson}" | jq -Mre '.rotation_rate | values')"
 			if [[ "$rpm" == "0" ]]; then drivetype="SSD"; else drivetype="HDD"; fi
 #			if [[ "$(echo $tempjson | grep -i "nvm")" ]]; then drivetype="NVM"; fi
 		
@@ -4705,8 +4705,8 @@ if [[ $Debug_Steps == "true" ]]; then echo "dump_drive_data $drive" | tee -a /tm
 	dev_args=($(smartctl --scan-open | grep -E "^/dev/${drive}[[:space:]]" | cut -d'#' -f1 | cut -d' ' -f2,3))
 	if [[ "$drive" != "cd0" ]]; then
 		tempjson="$(smartctl "${dev_args[@]}" -x --json /dev/${drive})"
-		serial1="$(echo "${tempjson}" # Ubuntu skip '.serial_number | values' | tr -d ' ')"
-		rpm="$(echo "${tempjson}" # Ubuntu skip '.rotation_rate | values')"
+		serial1="$(echo "${tempjson}" | jq -Mre '.serial_number | values' | tr -d ' ')"
+		rpm="$(echo "${tempjson}" | jq -Mre '.rotation_rate | values')"
 		if [[ "$rpm" == "0" ]]; then drivetype="SSD"; else drivetype="HDD"; fi
 		if [[ "$(echo $tempjson | grep -i "nvm")" ]]; then drivetype="NVM"; fi
 
@@ -5403,62 +5403,62 @@ if [[ $Debug_Steps == "true" ]]; then echo "get_tdr: $drive_name" | tee -a /tmp/
 		smartdata5="$(smartctl "${dev_args[@]}" -x --json=u /dev/${drive_name})"	# The first time it is loaded.
 	fi
 # Check Model Family (For Sandforce or Marvel Controller for ID241/242)
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.model_family | values')" ]]; then
-		model_family="$(echo "${smartdata5}" # Ubuntu skip '.model_family | values')"
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.scsi_model_family | values')" ]]; then
-		model_family="$(echo "${smartdata5}" # Ubuntu skip '.scsi_model_family | values')"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.model_family | values')" ]]; then
+		model_family="$(echo "${smartdata5}" | jq -Mre '.model_family | values')"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.scsi_model_family | values')" ]]; then
+		model_family="$(echo "${smartdata5}" | jq -Mre '.scsi_model_family | values')"
 	else
 		json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" .model_family not in json")"
 	fi # > /dev/null 2<&1
 
 #echo "Model Family"
 # Currently do not use `ssdblocksize`
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.logical_block_size | values')" ]]; then
-		ssdblocksize="$(echo "${smartdata5}" # Ubuntu skip '.logical_block_size | values')"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.logical_block_size | values')" ]]; then
+		ssdblocksize="$(echo "${smartdata5}" | jq -Mre '.logical_block_size | values')"
 	fi # > /dev/null 2<&1
 
 # Check for LBAs First (
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_device_statistics.pages[]?.table[]? | select(.name == "Logical Sectors Read") | .value | values')" ]]; then
-		ssdtdr="$(echo "${smartdata5}" # Ubuntu skip '.ata_device_statistics.pages[0].table[]? | select(.name == "Logical Sectors Read") | .value | values')"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_device_statistics.pages[]?.table[]? | select(.name == "Logical Sectors Read") | .value | values')" ]]; then
+		ssdtdr="$(echo "${smartdata5}" | jq -Mre '.ata_device_statistics.pages[0].table[]? | select(.name == "Logical Sectors Read") | .value | values')"
 		ssdtdr="$((( $ssdtdr * 512 ) / 1000000 ))"   # Convert LBA into bytes
 #echo "LBA1"
 #echo "ssdtdr1="$ssdtdr
 # Check for LBAs Second (Not Duplicate of Above) If page 0 above fails, try no page ident
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_device_statistics.pages[]?.table[]? | select(.name == "Logical Sectors Read") | .value | values')" ]]; then
-		ssdtdr="$(echo "${smartdata5}" # Ubuntu skip '.ata_device_statistics.pages[]?.table[]? | select(.name == "Logical Sectors Read") | .value | values')"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.ata_device_statistics.pages[]?.table[]? | select(.name == "Logical Sectors Read") | .value | values')" ]]; then
+		ssdtdr="$(echo "${smartdata5}" | jq -Mre '.ata_device_statistics.pages[]?.table[]? | select(.name == "Logical Sectors Read") | .value | values')"
 		ssdtdr="$((( $ssdtdr * 512 ) / 1000000 ))"   # Convert LBA into bytes
 #echo "LBA2"
 #echo "ssdtdr2="$ssdtdr
 # Check for NVMe (data_units_read)
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.nvme_smart_health_information_log.data_units_read | values')" ]]; then
-		ssdtdr="$(echo "${smartdata5}" # Ubuntu skip '.nvme_smart_health_information_log.data_units_read | values')"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.nvme_smart_health_information_log.data_units_read | values')" ]]; then
+		ssdtdr="$(echo "${smartdata5}" | jq -Mre '.nvme_smart_health_information_log.data_units_read | values')"
 #echo "NVM1 = "$ssdtdr
 		ssdtdr="$((( $ssdtdr * 512000 ) / 1000000 ))"
 #echo "NVM2 = "$ssdtdr
 # Check for SCSI (gigabytes_processed)
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.scsi_error_counter_log.read.gigabytes_processed | values')" ]]; then
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.scsi_error_counter_log.read.gigabytes_processed | values')" ]]; then
 #echo "ssdtdr3="$ssdtdr
-		ssdtdr="$(echo "${smartdata5}" # Ubuntu skip '.scsi_error_counter_log.read.gigabytes_processed | values' | cut -d'.' -f1)"
+		ssdtdr="$(echo "${smartdata5}" | jq -Mre '.scsi_error_counter_log.read.gigabytes_processed | values' | cut -d'.' -f1)"
 #echo "ssdtdr4="$ssdtdr
 		ssdtdr="$(( $ssdtdr * 1000 ))"
 #echo "SCSI"
 # Check for some SSDs (Total_Reads_GiB)
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Total_Reads_GiB") | .raw.value | values')" ]]; then
-		ssdtdr="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Total_Reads_GiB") | .raw.value | values')"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Total_Reads_GiB") | .raw.value | values')" ]]; then
+		ssdtdr="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Total_Reads_GiB") | .raw.value | values')"
 #echo "ssdtdr="$ssdtdr" before math"
 		ssdtdr="$((( $ssdtdr * 1073741824 ) / 1000000 ))"
 #echo "ssdtdr="$ssdtdr
 #echo "TRGiB="$ssdtdr
 # Check for some SSDs (Total_Reads_32MiB)
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Host_Reads_32MiB") | .raw.value | values')" ]]; then
-		ssdtdr="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Host_Reads_32MiB") | .raw.value | values')"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Host_Reads_32MiB") | .raw.value | values')" ]]; then
+		ssdtdr="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Host_Reads_32MiB") | .raw.value | values')"
 		ssdtdr="$((( $ssdtdr * 33554432 ) / 1000000 ))"
 #echo "TR32MiB"
 
 # Check for ID242 (Last Resort as this value does not appear standardized)
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 242) | .raw.value | values')" ]]; then
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 242) | .raw.value | values')" ]]; then
 #echo "ssdtdr5="$ssdtdr
-			ssdtdr="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 242) | .raw.value | values')"
+			ssdtdr="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 242) | .raw.value | values')"
 #echo "ssdtdr6="$ssdtdr
 		if [[ $model_family == *"SandForce"* ]]; then
 #echo "ssdtdr7="$ssdtdr
@@ -5508,52 +5508,52 @@ if [[ $Debug_Steps == "true" ]]; then echo "get_tdw: $drive_name" | tee -a /tmp/
 	fi
 
 # Check Model Family (For Sandforce or Marvel Controller for ID241/242)
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.model_family | values')" ]]; then
-		model_family="$(echo "${smartdata5}" # Ubuntu skip '.model_family | values')"
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.scsi_model_family | values')" ]]; then
-		model_family="$(echo "${smartdata5}" # Ubuntu skip '.scsi_model_family | values')"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.model_family | values')" ]]; then
+		model_family="$(echo "${smartdata5}" | jq -Mre '.model_family | values')"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.scsi_model_family | values')" ]]; then
+		model_family="$(echo "${smartdata5}" | jq -Mre '.scsi_model_family | values')"
 	else
 		json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" .model_family not in json")"
 	fi
 
 # Currently do not use.
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.logical_block_size | values')" ]]; then
-		ssdblocksize="$(echo "${smartdata5}" # Ubuntu skip '.logical_block_size | values')"		# Don't need block size yet.
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.logical_block_size | values')" ]]; then
+		ssdblocksize="$(echo "${smartdata5}" | jq -Mre '.logical_block_size | values')"		# Don't need block size yet.
 	fi
 
 # Check for LBAs
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_device_statistics.pages[]?.table[]? | select(.name == "Logical Sectors Written") | .value | values')" ]]; then
-		ssdtdw="$(echo "${smartdata5}" # Ubuntu skip '.ata_device_statistics.pages[0].table[]? | select(.name == "Logical Sectors Written") | .value | values')"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_device_statistics.pages[]?.table[]? | select(.name == "Logical Sectors Written") | .value | values')" ]]; then
+		ssdtdw="$(echo "${smartdata5}" | jq -Mre '.ata_device_statistics.pages[0].table[]? | select(.name == "Logical Sectors Written") | .value | values')"
 		ssdtdw="$((( $ssdtdw * 512 ) / 1000000 ))"   # Convert LBA into bytes
 
 # Check for LBAs slightly differently
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_device_statistics.pages[]?.table[]? | select(.name == "Logical Sectors Written") | .value | values')" ]]; then
-		ssdtdw="$(echo "${smartdata5}" # Ubuntu skip '.ata_device_statistics.pages[].table[]? | select(.name == "Logical Sectors Written") | .value | values')"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.ata_device_statistics.pages[]?.table[]? | select(.name == "Logical Sectors Written") | .value | values')" ]]; then
+		ssdtdw="$(echo "${smartdata5}" | jq -Mre '.ata_device_statistics.pages[].table[]? | select(.name == "Logical Sectors Written") | .value | values')"
 		ssdtdw="$((( $ssdtdw * 512 ) / 1000000 ))"   # Convert LBA into bytes
 
 # Check for NVMe (data_units_written)
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.nvme_smart_health_information_log.data_units_written | values')" ]]; then
-		ssdtdw="$(echo "${smartdata5}" # Ubuntu skip '.nvme_smart_health_information_log.data_units_written | values')"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.nvme_smart_health_information_log.data_units_written | values')" ]]; then
+		ssdtdw="$(echo "${smartdata5}" | jq -Mre '.nvme_smart_health_information_log.data_units_written | values')"
 		ssdtdw="$((($ssdtdw * 512000) / 1000000))"
 
 # Get SCSI (gigabytes_processed)
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.scsi_error_counter_log.write.gigabytes_processed | values')" ]]; then
-		ssdtdw="$(echo "${smartdata5}" # Ubuntu skip '.scsi_error_counter_log.write.gigabytes_processed | values' | cut -d'.' -f1)"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.scsi_error_counter_log.write.gigabytes_processed | values')" ]]; then
+		ssdtdw="$(echo "${smartdata5}" | jq -Mre '.scsi_error_counter_log.write.gigabytes_processed | values' | cut -d'.' -f1)"
 		ssdtdw="$(( $ssdtdw * 1000 ))"
 
 # Get Total Write GiB (Total_Writes_GiB)
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Total_Writes_GiB") | .raw.value | values')" ]]; then
-		ssdtdw="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Total_Writes_GiB") | .raw.value | values')"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Total_Writes_GiB") | .raw.value | values')" ]]; then
+		ssdtdw="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Total_Writes_GiB") | .raw.value | values')"
 		ssdtdw="$((( $ssdtdw * 1073741824 ) / 1000000 ))"
 
 # Check for some SSDs (Total_Writes_32MiB)
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Host_Writes_32MiB") | .raw.value | values')" ]]; then
-		ssdtdw="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Host_Writes_32MiB") | .raw.value | values')"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Host_Writes_32MiB") | .raw.value | values')" ]]; then
+		ssdtdw="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Host_Writes_32MiB") | .raw.value | values')"
 		ssdtdw="$((( $ssdtdw * 33554432 ) / 1000000 ))"
 
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 241) | .raw.value | values')" ]]; then
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 241) | .raw.value | values')" ]]; then
 		if [[ "$(echo "${smartdata5}" | grep -i "lba")" ]]; then
-			ssdtdw="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 241) | .raw.value | values')"
+			ssdtdw="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 241) | .raw.value | values')"
 			if [[ $model_family == *"SandForce"* ]]; then
 				ssdtdw="$(( $ssdtdw / 1000000000000 ))"		# Sandforce reports in GB
 			else
@@ -5865,8 +5865,8 @@ if [[ $Debug_Steps == "true" ]]; then echo "get_json_data: $drive" | tee -a /tmp
 			# Pull a fresh JSON listing
 			dev_args=($(smartctl --scan-open | grep -E "^/dev/${drive}[[:space:]]" | cut -d'#' -f1 | cut -d' ' -f2,3))
 			tempjson="$(smartctl "${dev_args[@]}" -x --json=u /dev/${drive})"
-			serial1="$(echo "${tempjson}" # Ubuntu skip '.serial_number | values' | tr -d ' ')"
-			rpm="$(echo "${tempjson}" # Ubuntu skip '.rotation_rate | values')"
+			serial1="$(echo "${tempjson}" | jq -Mre '.serial_number | values' | tr -d ' ')"
+			rpm="$(echo "${tempjson}" | jq -Mre '.rotation_rate | values')"
 			if [[ "$rpm" == "0" ]]; then drivetype="SSD"; else drivetype="HDD"; fi
 			if [[ "$(echo $tempjson | grep -i "nvm")" ]]; then drivetype="NVM"; fi
 			echo "$tempjson" > "/tmp/${tempfilepath}${drivetype}_${drive}_${serial1}.json"
@@ -5982,8 +5982,8 @@ dev_args=($(smartctl --scan-open | grep -E "^/dev/${drive}[[:space:]]" | cut -d'
 	fi
 
 # Get Serial Number
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.serial_number | values')" ]]; then
-		serial="$(echo "${smartdata5}" # Ubuntu skip '.serial_number | values' | tr -d ' ')"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.serial_number | values')" ]]; then
+		serial="$(echo "${smartdata5}" | jq -Mre '.serial_number | values' | tr -d ' ')"
 	else
 		if [[ "$(echo "${smartdata5}" | grep -i "vmware")" ]]; then serial="VMWare"; fi
 		json_error_log=$json_error_log"\n$(echo $drive" .serial_number not in json")" > /dev/null 2<&1
@@ -6006,19 +6006,19 @@ dev_args=($(smartctl --scan-open | grep -E "^/dev/${drive}[[:space:]]" | cut -d'
 	fi
 
 # Get Model Number
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.model_name | values')" ]]; then modelnumber="$(echo "${smartdata5}" # Ubuntu skip '.model_name | values')";
-		elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.scsi_model_name | values')" ]]; then modelnumber="$(echo "${smartdata5}" # Ubuntu skip '.scsi_model_name | values')";
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.model_name | values')" ]]; then modelnumber="$(echo "${smartdata5}" | jq -Mre '.model_name | values')";
+		elif [[ "$(echo "${smartdata5}" | jq -Mre '.scsi_model_name | values')" ]]; then modelnumber="$(echo "${smartdata5}" | jq -Mre '.scsi_model_name | values')";
 		else json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" .model_name not in json")"; fi > /dev/null 2<&1
 
 # Get Capacity
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.logical_block_size | values')" ]]; then capacity1="$(echo "${smartdata5}" # Ubuntu skip '.logical_block_size | values')"; else json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" .logical_block_size not in json")"; fi > /dev/null 2<&1
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.user_capacity.blocks | values')" ]]; then capacity2="$(echo "${smartdata5}" # Ubuntu skip '.user_capacity.blocks | values')"; else json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" .user_capacity.blocks not in json")"; fi > /dev/null 2<&1
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.logical_block_size | values')" ]]; then capacity1="$(echo "${smartdata5}" | jq -Mre '.logical_block_size | values')"; else json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" .logical_block_size not in json")"; fi > /dev/null 2<&1
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.user_capacity.blocks | values')" ]]; then capacity2="$(echo "${smartdata5}" | jq -Mre '.user_capacity.blocks | values')"; else json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" .user_capacity.blocks not in json")"; fi > /dev/null 2<&1
 	if [[ $capacity1 == "" ]] || [[ $capacity2 == "" ]]; then capacity1=1; capacity2=500; fi
 	# Calculate Capacity and adjust for GB/TB
 	capacity=$(( ${capacity1} * ${capacity2} ))
 
 # This line will override the previous values if the variable exists in the SMART data.
-if [[ $1 == "NVM" ]] && [[ "$(echo "${smartdata5}" # Ubuntu skip '.nvme_total_capacity | values')" ]]; then capacity="$(echo "${smartdata5}" # Ubuntu skip '.nvme_total_capacity | values')"; else json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" .nvme_total_capacity")"; fi > /dev/null 2<&1
+if [[ $1 == "NVM" ]] && [[ "$(echo "${smartdata5}" | jq -Mre '.nvme_total_capacity | values')" ]]; then capacity="$(echo "${smartdata5}" | jq -Mre '.nvme_total_capacity | values')"; else json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" .nvme_total_capacity")"; fi > /dev/null 2<&1
 	
 	capacity="$(( capacity/1000000000 ))"
 
@@ -6029,16 +6029,16 @@ if [[ $1 == "NVM" ]] && [[ "$(echo "${smartdata5}" # Ubuntu skip '.nvme_total_ca
 	fi
 
 # Get RPM
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.rotation_rate | values')" ]]; then
-		 rotation="$(echo "${smartdata5}" # Ubuntu skip '.rotation_rate | values')"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.rotation_rate | values')" ]]; then
+		 rotation="$(echo "${smartdata5}" | jq -Mre '.rotation_rate | values')"
 	else
 		if [[ $1 == "HDD" ]]; then json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" .rotation_rate not in json")"; fi
 	fi > /dev/null 2<&1
 
 # Get SMART Status
 	
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.smart_status.passed | values')" ]]; then
-		if [ "$(echo "${smartdata5}" # Ubuntu skip '.smart_status.passed | values')" = "true" ]; then  # We have a PASSED if 'true'
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.smart_status.passed | values')" ]]; then
+		if [ "$(echo "${smartdata5}" | jq -Mre '.smart_status.passed | values')" = "true" ]; then  # We have a PASSED if 'true'
 
 		# PASSED SMART
 			if [[ $SMART_Temp_Enable_PASS_List != "" ]]; then
@@ -6069,18 +6069,18 @@ if [[ $1 == "NVM" ]] && [[ "$(echo "${smartdata5}" # Ubuntu skip '.nvme_total_ca
 	
 # Get Temperature - Normal
 
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.temperature.current | values')" ]]; then
-		temp="$(echo "${smartdata5}" # Ubuntu skip '.temperature.current | values')"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.temperature.current | values')" ]]; then
+		temp="$(echo "${smartdata5}" | jq -Mre '.temperature.current | values')"
 	fi
 
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.scsi_environmental_reports.temperature_1.current | values')" ]]; then
-		temp="$(echo "${smartdata5}" # Ubuntu skip '.scsi_environmental_reports.temperature_1.current | values')"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.scsi_environmental_reports.temperature_1.current | values')" ]]; then
+		temp="$(echo "${smartdata5}" | jq -Mre '.scsi_environmental_reports.temperature_1.current | values')"
 	fi
 
 # Check if invalid json temp value - If yes then check ID 194 on json data.
 	if [[ $temp < 1 ]]; then
-		if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 194) | .raw.value | values')" ]]; then
-			temp="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 194) | .raw.value | values')"
+		if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 194) | .raw.value | values')" ]]; then
+			temp="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 194) | .raw.value | values')"
 # If Temp is still not there, look at the raw -x data and hope it shows up.
 		else	json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" .temperature.current not in json")"
 			if [[ "$(smartctl "${dev_args[@]}" -x /dev/${drive} | grep "Current Temperature:" | awk '{print $3}' | cut -d '/' -f2)" != "?" ]]; then
@@ -6092,14 +6092,14 @@ if [[ $1 == "NVM" ]] && [[ "$(echo "${smartdata5}" # Ubuntu skip '.nvme_total_ca
 	fi
 
 # Get Temperature - Minimum for Power Cycle
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.temperature.power_cycle_min | values')" ]]; then
-		temp_min="$(echo "${smartdata5}" # Ubuntu skip '.temperature.power_cycle_min | values')"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.temperature.power_cycle_min | values')" ]]; then
+		temp_min="$(echo "${smartdata5}" | jq -Mre '.temperature.power_cycle_min | values')"
 
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.scsi_environmental_reports.temperature_1.minimum_since_power_on | values')" ]]; then
-		temp_min="$(echo "${smartdata5}" # Ubuntu skip '.scsi_environmental_reports.temperature_1.minimum_since_power_on | values')"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.scsi_environmental_reports.temperature_1.minimum_since_power_on | values')" ]]; then
+		temp_min="$(echo "${smartdata5}" | jq -Mre '.scsi_environmental_reports.temperature_1.minimum_since_power_on | values')"
 
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 194) | .raw.string | values')" ]]; then
-		tempstring="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 194) | .raw.string | values')"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 194) | .raw.string | values')" ]]; then
+		tempstring="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 194) | .raw.string | values')"
 		temp_min=$(echo "${tempstring}" | awk '{print $3}' | cut -d '/' -f1)
 		temp_max=$(echo "${tempstring}" | awk '{print $3}' | cut -d '/' -f2 | tr -d ')')
 	else
@@ -6108,12 +6108,12 @@ if [[ $1 == "NVM" ]] && [[ "$(echo "${smartdata5}" # Ubuntu skip '.nvme_total_ca
 	fi > /dev/null 2<&1
 
 # Get Temperature - Maximum for Power Cycle
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.temperature.power_cycle_max | values')" ]]; then
-		temp_max="$(echo "${smartdata5}" # Ubuntu skip '.temperature.power_cycle_max | values')"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.temperature.power_cycle_max | values')" ]]; then
+		temp_max="$(echo "${smartdata5}" | jq -Mre '.temperature.power_cycle_max | values')"
 	fi
 
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.scsi_environmental_reports.temperature_1.maximum_since_power_on | values')" ]]; then
-		temp_max="$(echo "${smartdata5}" # Ubuntu skip '.scsi_environmental_reports.temperature_1.maximum_since_power_on | values')"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.scsi_environmental_reports.temperature_1.maximum_since_power_on | values')" ]]; then
+		temp_max="$(echo "${smartdata5}" | jq -Mre '.scsi_environmental_reports.temperature_1.maximum_since_power_on | values')"
 	fi
 	if [[ $temp_max == "" ]]; then
 		temp_max=$Non_Exist_Value
@@ -6133,94 +6133,94 @@ if [[ $1 == "NVM" ]] && [[ "$(echo "${smartdata5}" # Ubuntu skip '.nvme_total_ca
 # Get NVMe Sensor 1 and Sensor 2 Temperatures if they exist, can only use smartctl right now as I don't have an NVMe drive
 # in my SCALE system which report Sensor 1[0] and Sensor 2[1], only Current Temperature.
 	
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.nvme_smart_health_information_log.temperature_sensors[0]')" != null ]]; then
-		temp_sensor_0="$(echo "${smartdata5}" # Ubuntu skip '.nvme_smart_health_information_log.temperature_sensors[0]')"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.nvme_smart_health_information_log.temperature_sensors[0]')" != null ]]; then
+		temp_sensor_0="$(echo "${smartdata5}" | jq -Mre '.nvme_smart_health_information_log.temperature_sensors[0]')"
 	else
 		temp_sensor_0=0
 	fi
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.nvme_smart_health_information_log.temperature_sensors[1]')" != null ]]; then
-		temp_sensor_1="$(echo "${smartdata5}" # Ubuntu skip '.nvme_smart_health_information_log.temperature_sensors[1]')"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.nvme_smart_health_information_log.temperature_sensors[1]')" != null ]]; then
+		temp_sensor_1="$(echo "${smartdata5}" | jq -Mre '.nvme_smart_health_information_log.temperature_sensors[1]')"
 	else
 		temp_sensor_1=0
 	fi
 	
 # Get Start Stop Count
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 4) | .raw.value | values')" ]]; then
-		startStop="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 4) | .raw.value | values')"; fi > /dev/null 2<&1
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 4) | .raw.value | values')" ]]; then
+		startStop="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 4) | .raw.value | values')"; fi > /dev/null 2<&1
 	if [[ $startStop == "" ]] && [[ $1 == "HDD" ]]; then
 		startStop="$(echo "${smartdata5}" | grep -i "Accumulated start-stop cycles" | cut -d ':' -f 3 | tr -d ' ",')"			
 			json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" Accumulated start-stop cycles not in json")"; fi > /dev/null 2<&1
 	if [[ $startStop == "" ]] && [[ $1 == "HDD" ]]; then
-		startStop="$(echo "${smartdata5}" # Ubuntu skip '.scsi_start_stop_cycle_counter.accumulated_start_stop_cycles | values')"			
+		startStop="$(echo "${smartdata5}" | jq -Mre '.scsi_start_stop_cycle_counter.accumulated_start_stop_cycles | values')"			
 			json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" accumulated_start_stop_cycles not in json")"; fi > /dev/null 2<&1
 
 # Get Load Cycle Count
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 193) | .raw.value | values')" ]]; then
-		loadCycle="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 193) | .raw.value | values')"; fi  > /dev/null 2<&1
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 193) | .raw.value | values')" ]]; then
+		loadCycle="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 193) | .raw.value | values')"; fi  > /dev/null 2<&1
 	if [[ $loadCycle == "" ]] && [[ $1 == "HDD" ]]; then json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" .id == 193 Load_Cycle_Count not in json")"; fi > /dev/null 2<&1
 	if [[ $loadCycle == "" ]] && [[ $1 == "HDD" ]]; then
-		loadCycle="$(echo "${smartdata5}" # Ubuntu skip '.scsi_start_stop_cycle_counter.accumulated_load_unload_cycles | values')"			
+		loadCycle="$(echo "${smartdata5}" | jq -Mre '.scsi_start_stop_cycle_counter.accumulated_load_unload_cycles | values')"			
 			json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" accumulated_load_unload_cycles not in json")"; fi > /dev/null 2<&1
 	if [[ $loadCycle == "" ]] && [[ $1 == "HDD" ]]; then
 		loadCycle="$(echo "${smartdata5}" | grep "load-unload cycles:" | cut -d ':' -f3 | cut -d '"' -f1 | tr -d ' ')"			
 			json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" load-unload cycles: not in json")"; fi > /dev/null 2<&1
 
 # Get Spin Retry Count
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 10) | .raw.value | values')" ]]; then
-		spinRetry="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 10) | .raw.value | values')"; fi  > /dev/null 2<&1
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 10) | .raw.value | values')" ]]; then
+		spinRetry="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 10) | .raw.value | values')"; fi  > /dev/null 2<&1
 	if [[ $spinRetry == "" ]] && [[ $1 == "HDD" ]]; then json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" .id == 10 Spin_Retry_Count not in json")"; fi > /dev/null 2<&1
 
 # Get Reallocated Sectors Count
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 5) | .raw.value | values')" ]]; then
-		reAlloc="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 5) | .raw.value | values')"; fi  > /dev/null 2<&1
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 5) | .raw.value | values')" ]]; then
+		reAlloc="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 5) | .raw.value | values')"; fi  > /dev/null 2<&1
 	if [[ $reAlloc == "" ]]; then json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" .id == 5 Reallocated_Sector_Ct not in json")"; fi > /dev/null 2<&1
 
 # Get Reallocated Sector Events Count
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 196) | .raw.value | values')" ]]; then
-		reAllocEvent="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 196) | .raw.value | values')"; fi > /dev/null 2<&1
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 196) | .raw.value | values')" ]]; then
+		reAllocEvent="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 196) | .raw.value | values')"; fi > /dev/null 2<&1
 	if [[ $reAllocEvent == "" ]]; then json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" .id == 196 Reallocated_Event_Count not in json")"; fi > /dev/null 2<&1
 
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.scsi_grown_defect_list | values')" ]]; then
-		reAllocEvent="$(echo "${smartdata5}" # Ubuntu skip '.scsi_grown_defect_list | values')"; fi > /dev/null 2<&1
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.scsi_grown_defect_list | values')" ]]; then
+		reAllocEvent="$(echo "${smartdata5}" | jq -Mre '.scsi_grown_defect_list | values')"; fi > /dev/null 2<&1
 	if [[ $reAllocEvent == "" ]]; then json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" .scsi_grown_defect_list not in json")"; fi > /dev/null 2<&1
 
 # Get Current Pending Sectors Count
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 197) | .raw.value | values')" ]]; then
-		pending="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 197) | .raw.value | values')"; fi > /dev/null 2<&1
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 197) | .raw.value | values')" ]]; then
+		pending="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 197) | .raw.value | values')"; fi > /dev/null 2<&1
 	if [[ $pending == "" ]]; then json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" .id == 197 Current_Pending_Sector not in json")"; fi > /dev/null 2<&1
 
 # Get Offline Uncorrectable Errors
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 198) | .raw.value | values')" ]]; then
-		offlineUnc="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 198) | .raw.value | values')"; fi > /dev/null 2<&1
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 198) | .raw.value | values')" ]]; then
+		offlineUnc="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 198) | .raw.value | values')"; fi > /dev/null 2<&1
 	if [[ $offlineUnc == "" ]]; then json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" .id == 198 Offline_Uncorrectable not in json")"; fi > /dev/null 2<&1
 
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.scsi_error_counter_log.write.total_uncorrected_errors | values')" ]]; then
-		offlineUnc1="$(echo "${smartdata5}" # Ubuntu skip '.scsi_error_counter_log.write.total_uncorrected_errors | values')";
-		offlineUnc2="$(echo "${smartdata5}" # Ubuntu skip '.scsi_error_counter_log.read.total_uncorrected_errors | values')";
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.scsi_error_counter_log.write.total_uncorrected_errors | values')" ]]; then
+		offlineUnc1="$(echo "${smartdata5}" | jq -Mre '.scsi_error_counter_log.write.total_uncorrected_errors | values')";
+		offlineUnc2="$(echo "${smartdata5}" | jq -Mre '.scsi_error_counter_log.read.total_uncorrected_errors | values')";
 		offlineUnc=$((( $offlineUnc1 + $offlineUnc2 ))); fi > /dev/null 2<&1
 
 # Get UDMA CRC Errors
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 199) | .raw.value | values')" ]]; then
-		crcErrors="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 199) | .raw.value | values')"; fi > /dev/null 2<&1
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 199) | .raw.value | values')" ]]; then
+		crcErrors="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 199) | .raw.value | values')"; fi > /dev/null 2<&1
 	if [[ $crcErrors == "" ]]; then json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" .id == 199 UDMA_CRC_Error_Count not in json")"; fi > /dev/null 2<&1
 
 # Get Read Error Rate
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 1) | .raw.value | values')" ]]; then
-		rawReadErrorRate="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 1) | .raw.value | values')"; fi > /dev/null 2<&1
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 1) | .raw.value | values')" ]]; then
+		rawReadErrorRate="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 1) | .raw.value | values')"; fi > /dev/null 2<&1
 	if [[ $rawReadErrorRate == "" ]] && [[ $1 == "HDD" ]]; then json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" .id == 1 Raw_Read_Error_Rate not in json")"; fi > /dev/null 2<&1
 
 # Get Seek Error Rate
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 7) | .raw.value | values')" ]]; then
-		seekErrorHealth="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 7) | .raw.value | values')"; fi > /dev/null 2<&1
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 7) | .raw.value | values')" ]]; then
+		seekErrorHealth="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 7) | .raw.value | values')"; fi > /dev/null 2<&1
 	if [[ $seekErrorHealth == "" ]] && [[ $1 == "HDD" ]]; then json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" .id == 7 Seek_Error_Rate not in json")"; fi > /dev/null 2<&1
 
 # Get MultiZone Error Rate
 	if [[ $rotation -gt 1 ]]; then	# Pass HDD Only, Ignore SSD & NVMe drives not on these drives, yet.
 
-		if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 200) | .raw.value | values')" ]]; then
-			multiZone="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 200) | .raw.value | values')"; fi > /dev/null 2<&1
+		if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 200) | .raw.value | values')" ]]; then
+			multiZone="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 200) | .raw.value | values')"; fi > /dev/null 2<&1
 
-		if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 200) | .name | values')" == "Pressure_Limit" ]]; then multiZone=""; fi > /dev/null 2<&1
+		if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 200) | .name | values')" == "Pressure_Limit" ]]; then multiZone=""; fi > /dev/null 2<&1
 	
 		if [[ $multiZone == "" ]]; then
 			if [[ "$(echo "${smartdata5}" | grep "Multi_Zone_Error_Rate")" ]]; then
@@ -6234,11 +6234,11 @@ if [[ $1 == "NVM" ]] && [[ "$(echo "${smartdata5}" # Ubuntu skip '.nvme_total_ca
 	lastTestHours=""
 	he2="$(echo "${smartdata5}" | grep -i "helium" | awk '{print $2}' | tr -d '",' | head -1)"
 	if [[ "$he2" != "" ]]; then
-		Helium="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "'${he2}'") | .raw.value | values')"
+		Helium="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "'${he2}'") | .raw.value | values')"
 		if [[ $Helium -gt 100 ]]; then
-			Helium="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "'${he2}'") | .value | values')"
+			Helium="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "'${he2}'") | .value | values')"
 		fi
-		heliumthresh="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "'${he2}'") | .thresh | values')"
+		heliumthresh="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "'${he2}'") | .thresh | values')"
 		# Normalize Helium to 100.
 		if [[ $heliumthresh > 50 ]]; then
 			Helium=$(( 100 - $Helium ))  # Helium is now Normalized where "100" is good.
@@ -6253,27 +6253,27 @@ if [[ $1 == "NVM" ]] && [[ "$(echo "${smartdata5}" # Ubuntu skip '.nvme_total_ca
 ssdtdw=""
 ssdblocksize=""
 ID241=""
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.logical_block_size | values')" ]]; then
-		ssdblocksize="$(echo "${smartdata5}" # Ubuntu skip '.logical_block_size | values' | cut -d'.' -f1)"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.logical_block_size | values')" ]]; then
+		ssdblocksize="$(echo "${smartdata5}" | jq -Mre '.logical_block_size | values' | cut -d'.' -f1)"
 	fi > /dev/null 2<&1
 
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_device_statistics.pages[].table[]? | select(.name == "Logical Sectors Written") | .value | values')" ]]; then
-		ssdtdw="$(echo "${smartdata5}" # Ubuntu skip '.ata_device_statistics.pages[0].table[]? | select(.name == "Logical Sectors Written") | .value | values' | cut -d'.' -f1)"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_device_statistics.pages[].table[]? | select(.name == "Logical Sectors Written") | .value | values')" ]]; then
+		ssdtdw="$(echo "${smartdata5}" | jq -Mre '.ata_device_statistics.pages[0].table[]? | select(.name == "Logical Sectors Written") | .value | values' | cut -d'.' -f1)"
 	fi > /dev/null 2<&1
 
 	if [[ $ssdtdw == "" ]]; then	# If page 0 above fails, try no page ident
-		if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_device_statistics.pages[].table[]? | select(.name == "Logical Sectors Written") | .value | values')" ]]; then
-			ssdtdw="$(echo "${smartdata5}" # Ubuntu skip '.ata_device_statistics.pages[].table[]? | select(.name == "Logical Sectors Written") | .value | values' | cut -d'.' -f1)"
+		if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_device_statistics.pages[].table[]? | select(.name == "Logical Sectors Written") | .value | values')" ]]; then
+			ssdtdw="$(echo "${smartdata5}" | jq -Mre '.ata_device_statistics.pages[].table[]? | select(.name == "Logical Sectors Written") | .value | values' | cut -d'.' -f1)"
 		fi > /dev/null 2<&1
 	fi
 
 	if [[ $ssdtdw == "" ]]; then
 		
-		if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Total_Writes_GiB") | .raw.value | values')" ]]; then
-			ID241="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Total_Writes_GiB") | .raw.value | values' | cut -d'.' -f1)"
+		if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Total_Writes_GiB") | .raw.value | values')" ]]; then
+			ID241="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Total_Writes_GiB") | .raw.value | values' | cut -d'.' -f1)"
 
-		elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 241) | .raw.value | values')" ]]; then
-			ssdtdw="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 241) | .raw.value | values' | cut -d'.' -f1)"
+		elif [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 241) | .raw.value | values')" ]]; then
+			ssdtdw="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 241) | .raw.value | values' | cut -d'.' -f1)"
 		fi > /dev/null 2<&1
 	fi
 
@@ -6291,31 +6291,31 @@ ID241=""
 	wearLevel=""
 
 # Get Percentage Usage First if it exists.  This is out #1 priority value regardless of any other value.
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_device_statistics.pages[]?.table[]? | select(.name == "Percentage Used Endurance Indicator") | .value | values')" ]]; then
-		wearLevel="$(echo "${smartdata5}" # Ubuntu skip '.ata_device_statistics.pages[]?.table[]? | select(.name == "Percentage Used Endurance Indicator") | .value | values')"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_device_statistics.pages[]?.table[]? | select(.name == "Percentage Used Endurance Indicator") | .value | values')" ]]; then
+		wearLevel="$(echo "${smartdata5}" | jq -Mre '.ata_device_statistics.pages[]?.table[]? | select(.name == "Percentage Used Endurance Indicator") | .value | values')"
 		wearLevelThreshold=100
 #echo "wearlevel 1:"$wearLevel"  Thresh:"$wearLevelThreshold"   Drive:"$drive
 		if [[ $wearLevel -gt 100 ]]; then wearLevel=""; fi
 
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 231) | .value | values')" ]]; then
-		wearLevel="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 231) | .value | values')"
-		wearLevelThreshold="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 231) | .thresh | values')"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 231) | .value | values')" ]]; then
+		wearLevel="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 231) | .value | values')"
+		wearLevelThreshold="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 231) | .thresh | values')"
 #echo "wearlevel 2:"$wearLevel"  Thresh:"$wearLevelThreshold"   Drive:"$drive
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Percent_Lifetime_Remain") | .value | values')" ]]; then
-		wearLevel="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Percent_Lifetime_Remain") | .value | values')"
-		wearLevelThreshold="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Percent_Lifetime_Remain") | .thresh | values')"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Percent_Lifetime_Remain") | .value | values')" ]]; then
+		wearLevel="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Percent_Lifetime_Remain") | .value | values')"
+		wearLevelThreshold="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Percent_Lifetime_Remain") | .thresh | values')"
 #echo "wearlevel 3:"$wearLevel"  Thresh:"$wearLevelThreshold"   Drive:"$drive
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Media_Wearout_Indicator") | .value | values')" ]]; then
-		wearLevel="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Media_Wearout_Indicator") | .value | values')"
-		wearLevelThreshold="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Media_Wearout_Indicator") | .thresh | values')"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Media_Wearout_Indicator") | .value | values')" ]]; then
+		wearLevel="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Media_Wearout_Indicator") | .value | values')"
+		wearLevelThreshold="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Media_Wearout_Indicator") | .thresh | values')"
 #echo "wearlevel 4:"$wearLevel"  Thresh:"$wearLevelThreshold"   Drive:"$drive
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Wear_Leveling_Count") | .value | values')" ]]; then
-		wearLevel="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Wear_Leveling_Count") | .value | values')"
-		wearLevelThreshold="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Wear_Leveling_Count") | .thresh | values')"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Wear_Leveling_Count") | .value | values')" ]]; then
+		wearLevel="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Wear_Leveling_Count") | .value | values')"
+		wearLevelThreshold="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Wear_Leveling_Count") | .thresh | values')"
 #echo "wearlevel 5:"$wearLevel"  Thresh:"$wearLevelThreshold"   Drive:"$drive
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Perc_Avail_Resrvd_Space") | .value | values')" ]]; then
-		wearLevel="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Perc_Avail_Resrvd_Space") | .value | values')"
-		wearLevelThreshold="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Perc_Avail_Resrvd_Space") | .thresh | values')"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Perc_Avail_Resrvd_Space") | .value | values')" ]]; then
+		wearLevel="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Perc_Avail_Resrvd_Space") | .value | values')"
+		wearLevelThreshold="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Perc_Avail_Resrvd_Space") | .thresh | values')"
 #echo "wearlevel 6:"$wearLevel"  Thresh:"$wearLevelThreshold"   Drive:"$drive	
 	elif [[ $wearLevel == "" ]] && [[ $1 != "HDD" ]]; then
 		if [[ "$(echo ${smartdata5} | grep -i "wear")" ]] || [[ "$(echo ${smartdata5} | grep -i "life")" ]]; then
@@ -6332,31 +6332,31 @@ ID241=""
 	fi
 	
 # Get Normalized Wear Level for use in Custom Drive Selection if needed
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Wear_Leveling_Count") | .value | values')" ]]; then
-		wearLevelNormalized="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Wear_Leveling_Count") | .value | values')"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Wear_Leveling_Count") | .value | values')" ]]; then
+		wearLevelNormalized="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Wear_Leveling_Count") | .value | values')"
 	fi > /dev/null 2<&1
 #echo "wearlevel 8:"$wearLevel"  Thresh:"$wearLevelThreshold"   Drive:"$drive
 
 # Check SSD/NVMe Wear Level - THIS WORKS for NVMe Where 100 = 100
 
 	if [[ $wearLevel == "" ]]; then
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.nvme_smart_health_information_log.percentage_used | values')" ]]; then
-		wearLevel="$(echo "${smartdata5}" # Ubuntu skip '.nvme_smart_health_information_log.percentage_used | values')"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.nvme_smart_health_information_log.percentage_used | values')" ]]; then
+		wearLevel="$(echo "${smartdata5}" | jq -Mre '.nvme_smart_health_information_log.percentage_used | values')"
 		wearLevel=$((100 - $wearLevel))
 
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.nvme_smart_health_information_log.available_spare | values')" ]]; then
-		wearLevel="$(echo "${smartdata5}" # Ubuntu skip '.nvme_smart_health_information_log.available_spare | values')"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.nvme_smart_health_information_log.available_spare | values')" ]]; then
+		wearLevel="$(echo "${smartdata5}" | jq -Mre '.nvme_smart_health_information_log.available_spare | values')"
 	fi > /dev/null 2<&1
 	fi
 #echo "wearlevel 9:"$wearLevel"  Thresh:"$wearLevelThreshold"   Drive:"$drive
 # WORKS FOR SCSI Where 0 = 100
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.scsi_percentage_used_endurance_indicator | values')" ]]; then
-		wearLevel=$((100 - "$(echo "${smartdata5}" # Ubuntu skip '.scsi_percentage_used_endurance_indicator | values')"))
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.scsi_percentage_used_endurance_indicator | values')" ]]; then
+		wearLevel=$((100 - "$(echo "${smartdata5}" | jq -Mre '.scsi_percentage_used_endurance_indicator | values')"))
 	fi > /dev/null 2<&1
 
 # Get Device Type - SCSI
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.device.type | values')" ]]; then
-		devicetype="$(echo "${smartdata5}" # Ubuntu skip '.device.type | values')"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.device.type | values')" ]]; then
+		devicetype="$(echo "${smartdata5}" | jq -Mre '.device.type | values')"
 	else
 		json_error_log=$json_error_log$'\n'"$(echo $1 " "$serial" .device.type not in json")" > /dev/null 2<&1
 	fi > /dev/null 2<&1
@@ -6365,13 +6365,13 @@ ID241=""
 	fi
 
 # Get NVMe Critical Warning Value
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.nvme_smart_health_information_log.critical_warning | values')" ]]; then
-		NVMcriticalWarning="$(echo "${smartdata5}" # Ubuntu skip '.nvme_smart_health_information_log.critical_warning | values')"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.nvme_smart_health_information_log.critical_warning | values')" ]]; then
+		NVMcriticalWarning="$(echo "${smartdata5}" | jq -Mre '.nvme_smart_health_information_log.critical_warning | values')"
 	fi > /dev/null 2<&1
 
 # Get NVMe Media Errors
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.nvme_smart_health_information_log.media_errors | values')" ]]; then
-		mediaErrors="$(echo "${smartdata5}" # Ubuntu skip '.nvme_smart_health_information_log.media_errors | values')"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.nvme_smart_health_information_log.media_errors | values')" ]]; then
+		mediaErrors="$(echo "${smartdata5}" | jq -Mre '.nvme_smart_health_information_log.media_errors | values')"
 	fi > /dev/null 2<&1
 
 # Get NVMe Power State
@@ -6394,56 +6394,56 @@ ID241=""
 	fi
 
 # Check Model Family (For Sandforce or Marvel Controller for ID241/242)
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.model_family | values')" ]]; then model_family="$(echo "${smartdata5}" # Ubuntu skip '.model_family | values')";
-		elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.scsi_model_family | values')" ]]; then model_family="$(echo "${smartdata5}" # Ubuntu skip '.scsi_model_family | values')";
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.model_family | values')" ]]; then model_family="$(echo "${smartdata5}" | jq -Mre '.model_family | values')";
+		elif [[ "$(echo "${smartdata5}" | jq -Mre '.scsi_model_family | values')" ]]; then model_family="$(echo "${smartdata5}" | jq -Mre '.scsi_model_family | values')";
 		else json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" .model_family not in json")"; fi #> /dev/null 2<&1
 
 # Currently do not use.
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.logical_block_size | values')" ]]; then
-		ssdblocksize="$(echo "${smartdata5}" # Ubuntu skip '.logical_block_size | values' | cut -d'.' -f1)"		# Don't need block size yet.
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.logical_block_size | values')" ]]; then
+		ssdblocksize="$(echo "${smartdata5}" | jq -Mre '.logical_block_size | values' | cut -d'.' -f1)"		# Don't need block size yet.
 	fi #> /dev/null 2<&1
 
 # Normalize from Bytes to MB
 
 # Check for LBAs
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_device_statistics.pages[].table[]? | select(.name == "Logical Sectors Written") | .value | values')" ]]; then
-		tdw="$(echo "${smartdata5}" # Ubuntu skip '.ata_device_statistics.pages[0].table[]? | select(.name == "Logical Sectors Written") | .value | values' | cut -d'.' -f1)"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_device_statistics.pages[].table[]? | select(.name == "Logical Sectors Written") | .value | values')" ]]; then
+		tdw="$(echo "${smartdata5}" | jq -Mre '.ata_device_statistics.pages[0].table[]? | select(.name == "Logical Sectors Written") | .value | values' | cut -d'.' -f1)"
 		echo "Convert LBA 1 tdw="$tdw
 		ssdtdw="$((( $tdw * 512 ) / 1000000 ))"   # Convert LBA into bytes, now MB
 
 # Check for LBAs slightly differently
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_device_statistics.pages[].table[]? | select(.name == "Logical Sectors Written") | .value | values')" ]]; then
-		tdw="$(echo "${smartdata5}" # Ubuntu skip '.ata_device_statistics.pages[].table[]? | select(.name == "Logical Sectors Written") | .value | values' | cut -d'.' -f1)"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.ata_device_statistics.pages[].table[]? | select(.name == "Logical Sectors Written") | .value | values')" ]]; then
+		tdw="$(echo "${smartdata5}" | jq -Mre '.ata_device_statistics.pages[].table[]? | select(.name == "Logical Sectors Written") | .value | values' | cut -d'.' -f1)"
 		echo "Convert LBA 2 tdw="$tdw
 		ssdtdw="$((( $tdw * 512 ) / 1000000 ))"   # Convert LBA into bytes, now MB
 
 # Check for NVMe (data_units_written)
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.nvme_smart_health_information_log.data_units_written | values')" ]]; then
-		tdw="$(echo "${smartdata5}" # Ubuntu skip '.nvme_smart_health_information_log.data_units_written | values' | cut -d'.' -f1)"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.nvme_smart_health_information_log.data_units_written | values')" ]]; then
+		tdw="$(echo "${smartdata5}" | jq -Mre '.nvme_smart_health_information_log.data_units_written | values' | cut -d'.' -f1)"
 		echo "Convert Data Units tdw="$tdw
 		ssdtdw="$((($tdw * 512000) / 1000000))"	# Convert to bytes, now MB
 
 # Get SCSI (gigabytes_processed)
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.scsi_error_counter_log.write.gigabytes_processed | values')" ]]; then
-		tdw="$(echo "${smartdata5}" # Ubuntu skip '.scsi_error_counter_log.write.gigabytes_processed | values' | cut -d'.' -f1)"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.scsi_error_counter_log.write.gigabytes_processed | values')" ]]; then
+		tdw="$(echo "${smartdata5}" | jq -Mre '.scsi_error_counter_log.write.gigabytes_processed | values' | cut -d'.' -f1)"
 		echo "Convert SCSI tdw="$tdw
 		ssdtdw="$(( $tdw * 1000 ))"	# Default is GB, * 1000 to make MB
 
 # Get Total Write GiB (Total_Writes_GiB)
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Total_Writes_GiB") | .raw.value | values')" ]]; then
-		tdw="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Total_Writes_GiB") | .raw.value | values' | cut -d'.' -f1)"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Total_Writes_GiB") | .raw.value | values')" ]]; then
+		tdw="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Total_Writes_GiB") | .raw.value | values' | cut -d'.' -f1)"
 		echo "Convert Total Write GiB tdw="$tdw
 		ssdtdw="$((( $tdw * 1073741824 ) / 1000000 ))"  # Convert to bytes, now MB
 
 # Check for some SSDs (Total_Writes_32MiB)
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Host_Writes_32MiB") | .raw.value | values')" ]]; then
-		tdw="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.name == "Host_Writes_32MiB") | .raw.value | values' | cut -d'.' -f1)"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Host_Writes_32MiB") | .raw.value | values')" ]]; then
+		tdw="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.name == "Host_Writes_32MiB") | .raw.value | values' | cut -d'.' -f1)"
 		echo "Convert Total Writes 32 MiB tdw="$tdw
 		ssdtdw="$((( $tdw * 33554432 ) / 1000000 ))"		# Convert to bytes, now MB
 
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 241) | .raw.value | values')" ]]; then
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 241) | .raw.value | values')" ]]; then
 		if [[ "$(echo "${smartdata5}" | grep -i "lba")" ]]; then
-			tdw="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 241) | .raw.value | values' | cut -d'.' -f1)"
+			tdw="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 241) | .raw.value | values' | cut -d'.' -f1)"
 			if [[ $model_family == *"SandForce"* ]]; then
 		echo "Convert SandForce tdw="$tdw
 				ssdtdw="$(( $tdw * 1000 ))"		# Sandforce reports in GB, now MB
@@ -6494,73 +6494,73 @@ ID241=""
 		crcErrors="$(echo "$smartdata" | grep "Interface CRC Errors" | awk '{print $4}')"; fi 
 	fi
 
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_data.self_test.status.remaining_percent | values')" ]]; then
-		smarttesting="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_data.self_test.status.remaining_percent | values')"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_data.self_test.status.remaining_percent | values')" ]]; then
+		smarttesting="$(echo "${smartdata5}" | jq -Mre '.ata_smart_data.self_test.status.remaining_percent | values')"
 	fi
 	
 	### ADD CHECKING THE SECOND LINE FOR TEST PASS/FAIL FOR THE FOLLOWING lastTestStatusPass VARIABLE
 
 	lastTestStatusPass="true"  # Setup default, a failure can change it.
 
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_self_test_log.extended.table | values')" ]]; then
-		lastTestHours="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_self_test_log.extended.table[0].lifetime_hours | values')"
-		lastTestType="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_self_test_log.extended.table[0].type.string | values')"
-		lastTestStatus="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_self_test_log.extended.table[0].status.string | values')"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_self_test_log.extended.table | values')" ]]; then
+		lastTestHours="$(echo "${smartdata5}" | jq -Mre '.ata_smart_self_test_log.extended.table[0].lifetime_hours | values')"
+		lastTestType="$(echo "${smartdata5}" | jq -Mre '.ata_smart_self_test_log.extended.table[0].type.string | values')"
+		lastTestStatus="$(echo "${smartdata5}" | jq -Mre '.ata_smart_self_test_log.extended.table[0].status.string | values')"
 		
-		if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_data.self_test.status.string | values')" ]]; then
-			lastTestStatus="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_data.self_test.status.string | values')"
+		if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_data.self_test.status.string | values')" ]]; then
+			lastTestStatus="$(echo "${smartdata5}" | jq -Mre '.ata_smart_data.self_test.status.string | values')"
 		fi
 		
-		lastTestStatusPass="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_self_test_log.extended.table[0].status.passed | values')"
+		lastTestStatusPass="$(echo "${smartdata5}" | jq -Mre '.ata_smart_self_test_log.extended.table[0].status.passed | values')"
 		if [[ $lastTestStatusPass == "true" ]]; then		# If the last test passed, check the previous test as well.
-			lastTestStatusPass="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_self_test_log.extended.table[1].status.passed | values')"
+			lastTestStatusPass="$(echo "${smartdata5}" | jq -Mre '.ata_smart_self_test_log.extended.table[1].status.passed | values')"
 #			echo "Checking Previous Test Pass"
 		fi
 	
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_self_test_log.standard.table | values')" ]]; then
-		lastTestHours="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_self_test_log.standard.table[0].lifetime_hours | values')"
-		lastTestType="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_self_test_log.standard.table[0].type.string | values')"
-		lastTestStatus="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_self_test_log.standard.table[0].status.string | values')"
-		lastTestStatusPass="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_self_test_log.standard.table[0].status.passed | values')"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_self_test_log.standard.table | values')" ]]; then
+		lastTestHours="$(echo "${smartdata5}" | jq -Mre '.ata_smart_self_test_log.standard.table[0].lifetime_hours | values')"
+		lastTestType="$(echo "${smartdata5}" | jq -Mre '.ata_smart_self_test_log.standard.table[0].type.string | values')"
+		lastTestStatus="$(echo "${smartdata5}" | jq -Mre '.ata_smart_self_test_log.standard.table[0].status.string | values')"
+		lastTestStatusPass="$(echo "${smartdata5}" | jq -Mre '.ata_smart_self_test_log.standard.table[0].status.passed | values')"
 		if [[ $lastTestStatusPass == "true" ]]; then		# If the last test passed, check the previous test as well.
-			lastTestStatusPass="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_self_test_log.standard.table[1].status.passed | values')"
+			lastTestStatusPass="$(echo "${smartdata5}" | jq -Mre '.ata_smart_self_test_log.standard.table[1].status.passed | values')"
 		fi
 
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_selective_self_test_log.table | values')" ]]; then
-		lastTestHours="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_selective_self_test_log.table[0].lifetime_hours | values')"
-		lastTestType="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_selective_self_test_log.table[0].status.string | values')"
-		lastTestStatus="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_selective_self_test_log.table[0].status.string | values')"     
-		lastTestStatusPass="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_selective_self_test_log.table[0].status.passed | values')"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_selective_self_test_log.table | values')" ]]; then
+		lastTestHours="$(echo "${smartdata5}" | jq -Mre '.ata_smart_selective_self_test_log.table[0].lifetime_hours | values')"
+		lastTestType="$(echo "${smartdata5}" | jq -Mre '.ata_smart_selective_self_test_log.table[0].status.string | values')"
+		lastTestStatus="$(echo "${smartdata5}" | jq -Mre '.ata_smart_selective_self_test_log.table[0].status.string | values')"     
+		lastTestStatusPass="$(echo "${smartdata5}" | jq -Mre '.ata_smart_selective_self_test_log.table[0].status.passed | values')"
 		if [[ $lastTestStatusPass == "true" ]]; then		# If the last test passed, check the previous test as well.
-			lastTestStatusPass="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_selective_self_test_log.table[1].status.passed | values')"
+			lastTestStatusPass="$(echo "${smartdata5}" | jq -Mre '.ata_smart_selective_self_test_log.table[1].status.passed | values')"
 		fi
 
 # New NVMe to hopefully capture testing % in progress
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.nvme_self_test_log | values')" ]]; then
-		lastTestHours="$(echo "${smartdata5}" # Ubuntu skip '.nvme_self_test_log.table[0].power_on_hours | values')"
-		lastTestType="$(echo "${smartdata5}" # Ubuntu skip '.nvme_self_test_log.current_self_test_operation.string | values')"
-		lastTestStatus="$(echo "${smartdata5}" # Ubuntu skip '.nvme_self_test_log.current_self_test_completion_percent | values')"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.nvme_self_test_log | values')" ]]; then
+		lastTestHours="$(echo "${smartdata5}" | jq -Mre '.nvme_self_test_log.table[0].power_on_hours | values')"
+		lastTestType="$(echo "${smartdata5}" | jq -Mre '.nvme_self_test_log.current_self_test_operation.string | values')"
+		lastTestStatus="$(echo "${smartdata5}" | jq -Mre '.nvme_self_test_log.current_self_test_completion_percent | values')"
 		if [[ "$lastTestType" == *"No self-test"* ]]; then
-			lastTestType="$(echo "${smartdata5}" # Ubuntu skip '.nvme_self_test_log.table[0].self_test_code.string | values')"
+			lastTestType="$(echo "${smartdata5}" | jq -Mre '.nvme_self_test_log.table[0].self_test_code.string | values')"
 		else
 			lastTestType=$lastTestType" "$((100-$lastTestStatus))"% Remaining"
 		fi
-		lastTestStatusPass="$(echo "${smartdata5}" # Ubuntu skip '.nvme_self_test_log.table[0].self_test_result.value | values')"
+		lastTestStatusPass="$(echo "${smartdata5}" | jq -Mre '.nvme_self_test_log.table[0].self_test_result.value | values')"
 		if [[ $lastTestStatusPass == 0 ]]; then lastTestStatusPass="true"; fi
 
 		if [[ $lastTestStatusPass == "true" ]]; then		# If the last test passed, check the previous test as well.
-			lastTestStatusPass="$(echo "${smartdata5}" # Ubuntu skip '.nvme_self_test_log.table[1].self_test_result.value | values')"
+			lastTestStatusPass="$(echo "${smartdata5}" | jq -Mre '.nvme_self_test_log.table[1].self_test_result.value | values')"
 			if [[ $lastTestStatusPass == 0 ]]; then lastTestStatusPass="true"; fi
 		fi
 
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.nvme_self_test_log.table | values')" ]]; then
-		lastTestHours="$(echo "${smartdata5}" # Ubuntu skip '.nvme_self_test_log.table[0].power_on_hours | values')"
-		lastTestType="$(echo "${smartdata5}" # Ubuntu skip '.nvme_self_test_log.table[0].self_test_code.string | values')"
-		lastTestStatus="$(echo "${smartdata5}" # Ubuntu skip '.nvme_self_test_log.table[0].self_test_result.string | values')"
-		lastTestStatusPass="$(echo "${smartdata5}" # Ubuntu skip '.nvme_self_test_log.table[0].self_test_result.value | values')"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.nvme_self_test_log.table | values')" ]]; then
+		lastTestHours="$(echo "${smartdata5}" | jq -Mre '.nvme_self_test_log.table[0].power_on_hours | values')"
+		lastTestType="$(echo "${smartdata5}" | jq -Mre '.nvme_self_test_log.table[0].self_test_code.string | values')"
+		lastTestStatus="$(echo "${smartdata5}" | jq -Mre '.nvme_self_test_log.table[0].self_test_result.string | values')"
+		lastTestStatusPass="$(echo "${smartdata5}" | jq -Mre '.nvme_self_test_log.table[0].self_test_result.value | values')"
 		if [[ $lastTestStatusPass == 0 ]]; then lastTestStatusPass="true"; fi
 		if [[ $lastTestStatusPass == "true" ]]; then		# If the last test passed, check the previous test as well.
-			lastTestStatusPass="$(echo "${smartdata5}" # Ubuntu skip '.nvme_self_test_log.table[1].self_test_result.value | values')"
+			lastTestStatusPass="$(echo "${smartdata5}" | jq -Mre '.nvme_self_test_log.table[1].self_test_result.value | values')"
 			if [[ $lastTestStatusPass == 0 ]]; then lastTestStatusPass="true"; fi
 		fi
 
@@ -6625,8 +6625,8 @@ ID241=""
 	fi
 
 	if [[ $lastTestStatus == "" ]]; then
-		if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_data.self_test.status.string | values')" ]]; then
-			lastTestStatus="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_data.self_test.status.string | values')"
+		if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_data.self_test.status.string | values')" ]]; then
+			lastTestStatus="$(echo "${smartdata5}" | jq -Mre '.ata_smart_data.self_test.status.string | values')"
 		fi
 	fi
 
@@ -6699,12 +6699,12 @@ fi
 ################
 
 # Get Power On Hours
-	if [[ "$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 9) | .raw.string | values')" ]]; then
-		onHours="$(echo "${smartdata5}" # Ubuntu skip '.ata_smart_attributes.table[]? | select(.id == 9) | .raw.string | values' | cut -d'h' -f1)"
+	if [[ "$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 9) | .raw.string | values')" ]]; then
+		onHours="$(echo "${smartdata5}" | jq -Mre '.ata_smart_attributes.table[]? | select(.id == 9) | .raw.string | values' | cut -d'h' -f1)"
 		logfile_caution=$logfile_caution"$(printf "Drive "$serial" actual Power On Hours = "$onHours"<br>")" > /dev/null 2<&1
 	
-	elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.power_on_time.hours | values')" ]]; then
-		onHours="$(echo "${smartdata5}" # Ubuntu skip '.power_on_time.hours | values')"
+	elif [[ "$(echo "${smartdata5}" | jq -Mre '.power_on_time.hours | values')" ]]; then
+		onHours="$(echo "${smartdata5}" | jq -Mre '.power_on_time.hours | values')"
 		logfile_caution=$logfile_caution"$(printf "Drive "$serial" actual Power On Hours = "$onHours"<br>")" > /dev/null 2<&1
 
 	else
@@ -6915,8 +6915,8 @@ Check_power_on_time ()
 	for drive in ${smartdrives[@]}; do
 		dev_args=($(smartctl --scan-open | grep -E "^/dev/${drive}[[:space:]]" | cut -d'#' -f1 | cut -d' ' -f2,3))
 		smartdata5="$(smartctl "${dev_args[@]}" -x --json=u /dev/${drive})"
-		if [[ "$(echo "${smartdata5}" # Ubuntu skip '.power_on_time.hours | values')" ]]; then
-			onHours="$(echo "${smartdata5}" # Ubuntu skip '.power_on_time.hours | values')"
+		if [[ "$(echo "${smartdata5}" | jq -Mre '.power_on_time.hours | values')" ]]; then
+			onHours="$(echo "${smartdata5}" | jq -Mre '.power_on_time.hours | values')"
 		else
 			if [[ "$Run_SMART_No_power_on_time" == "yes" ]]; then
 				smartctl "${dev_args[@]}" -t short /dev/${drive}
@@ -6928,8 +6928,8 @@ Check_power_on_time ()
 	for drive in ${smartdrivesSSD[@]}; do
 		dev_args=($(smartctl --scan-open | grep -E "^/dev/${drive}[[:space:]]" | cut -d'#' -f1 | cut -d' ' -f2,3))
 		smartdata5="$(smartctl "${dev_args[@]}" -x --json=u /dev/${drive})"
-		if [[ "$(echo "${smartdata5}" # Ubuntu skip '.power_on_time.hours | values')" ]]; then
-			onHours="$(echo "${smartdata5}" # Ubuntu skip '.power_on_time.hours | values')"
+		if [[ "$(echo "${smartdata5}" | jq -Mre '.power_on_time.hours | values')" ]]; then
+			onHours="$(echo "${smartdata5}" | jq -Mre '.power_on_time.hours | values')"
 		else
 			if [[ "$Run_SMART_No_power_on_time" == "yes" ]]; then
 				smartctl "${dev_args[@]}" -t short /dev/${drive}
@@ -6941,8 +6941,8 @@ Check_power_on_time ()
 	for drive in ${smartdrivesNVM[@]}; do
 		dev_args=($(smartctl --scan-open | grep -E "^/dev/${drive}[[:space:]]" | cut -d'#' -f1 | cut -d' ' -f2,3))
 		smartdata5="$(smartctl "${dev_args[@]}" -x --json=u /dev/${drive})"
-		if [[ "$(echo "${smartdata5}" # Ubuntu skip '.power_on_time.hours | values')" ]]; then
-			onHours="$(echo "${smartdata5}" # Ubuntu skip '.power_on_time.hours | values')"
+		if [[ "$(echo "${smartdata5}" | jq -Mre '.power_on_time.hours | values')" ]]; then
+			onHours="$(echo "${smartdata5}" | jq -Mre '.power_on_time.hours | values')"
 		else
 			if [[ "$Run_SMART_No_power_on_time" == "yes" ]]; then
 				smartctl "${dev_args[@]}" -t short /dev/${drive}
@@ -7634,7 +7634,7 @@ if [[ $Debug_Steps == "true" ]]; then echo "detailed_report" | tee -a /tmp/multi
 						fi
 						if [[ "$drive_name" == *"nvd"* ]]; then	drive_name="nvme"$(echo ${drive_name} | cut -d'd' -f2); fi
 						IFS=' ' read -ra dev_args <<< "$(smartctl --scan-open | grep -E "^/dev/${drive_name}[[:space:]]" | cut -d'#' -f1 | cut -d' ' -f2,3)"
-						serial_temp=$(smartctl "${dev_args[@]}" -a --json=u /dev/${drive_name} # Ubuntu skip '.serial_number | values' | tr -d ' ')
+						serial_temp=$(smartctl "${dev_args[@]}" -a --json=u /dev/${drive_name} | jq -Mre '.serial_number | values' | tr -d ' ')
 						if [[ $serial_temp == "" ]]; then serial_temp=$Non_Exist_Value; fi
 						virtual_drive_test=$(smartctl "${dev_args[@]}" -a /dev/${drive_name} | grep -i "virtual")
 						if [[ $virtual_drive_test != "" ]]; then
@@ -7674,7 +7674,7 @@ if [[ $Debug_Steps == "true" ]]; then echo "detailed_report" | tee -a /tmp/multi
 						drive_ident=$(lsblk -o +PARTUUID,NAME,LABEL | grep -w "$longgptid" | awk -F" " '{print $7 " -> " $8}')
 						drive_name=$(lsblk -o +PARTUUID,NAME,LABEL | grep -w "$longgptid" | awk -F" " '{print $8}')
 						IFS=' ' read -ra dev_args <<< "$(smartctl --scan-open | grep -E "^/dev/${drive_name}[[:space:]]" | cut -d'#' -f1 | cut -d' ' -f2,3)"
-						serial_temp=$(smartctl "${dev_args[@]}" -a --json=u /dev/${drive_name} # Ubuntu skip '.serial_number | values' | tr -d ' ')
+						serial_temp=$(smartctl "${dev_args[@]}" -a --json=u /dev/${drive_name} | jq -Mre '.serial_number | values' | tr -d ' ')
 
 						if [[ $serial_temp == "" ]]; then serial_temp=$Non_Exist_Value; fi
 						virtual_drive_test=$(smartctl "${dev_args[@]}" -a /dev/${drive_name} | grep -i "virtual")
@@ -7713,14 +7713,14 @@ if [[ $Debug_Steps == "true" ]]; then echo "detailed_report" | tee -a /tmp/multi
 				if [[ $drive == "TEST" ]] ; then
 
 					testfileX="$( cat "${testfile}" )"
-					modelnumber="$(echo "${testfileX}" # Ubuntu skip '.model_name | values')"
+					modelnumber="$(echo "${testfileX}" | jq -Mre '.model_name | values')"
 # modelnumber does not look at .scsi version for the test file, CHANGE THIS.
 
-					if [[ "$(echo "${testfileX}" # Ubuntu skip '.model_name | values')" ]]; then modelnumber="$(echo "${testfileX}" # Ubuntu skip '.model_name | values')";
-					elif [[ "$(echo "${testfileX}" # Ubuntu skip '.scsi_model_name | values')" ]]; then modelnumber="$(echo "${testfileX}" # Ubuntu skip '.scsi_model_name | values')";
+					if [[ "$(echo "${testfileX}" | jq -Mre '.model_name | values')" ]]; then modelnumber="$(echo "${testfileX}" | jq -Mre '.model_name | values')";
+					elif [[ "$(echo "${testfileX}" | jq -Mre '.scsi_model_name | values')" ]]; then modelnumber="$(echo "${testfileX}" | jq -Mre '.scsi_model_name | values')";
 					else json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" .model_name not in json")"; fi > /dev/null 2<&1
 
-					serial="$(echo "${testfileX}" # Ubuntu skip '.serial_number | values' | tr -d ' ')"
+					serial="$(echo "${testfileX}" | jq -Mre '.serial_number | values' | tr -d ' ')"
 
 					(
 						echo "<br><b>########## FULL TESTFILE -- SMART status report for drive ${drive} (${modelnumber}: ${serial}${SMR_Note} : ${drive_location}) ##########</b>"
@@ -7740,13 +7740,13 @@ if [[ $Debug_Steps == "true" ]]; then echo "detailed_report" | tee -a /tmp/multi
 #						fi
 #					fi
 
-				#	modelnumber="$(echo "${smartdata5}" # Ubuntu skip '.model_name | values')"
+				#	modelnumber="$(echo "${smartdata5}" | jq -Mre '.model_name | values')"
 					
-					if [[ "$(echo "${smartdata5}" # Ubuntu skip '.model_name | values')" ]]; then modelnumber="$(echo "${smartdata5}" # Ubuntu skip '.model_name | values')";
-					elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.scsi_model_name | values')" ]]; then modelnumber="$(echo "${smartdata5}" # Ubuntu skip '.scsi_model_name | values')";
+					if [[ "$(echo "${smartdata5}" | jq -Mre '.model_name | values')" ]]; then modelnumber="$(echo "${smartdata5}" | jq -Mre '.model_name | values')";
+					elif [[ "$(echo "${smartdata5}" | jq -Mre '.scsi_model_name | values')" ]]; then modelnumber="$(echo "${smartdata5}" | jq -Mre '.scsi_model_name | values')";
 					else json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" .model_name not in json")"; fi > /dev/null 2<&1
 					
-					serial="$(echo "${smartdata5}" # Ubuntu skip '.serial_number | values' | tr -d ' ')"
+					serial="$(echo "${smartdata5}" | jq -Mre '.serial_number | values' | tr -d ' ')"
 					get_location $serial
 					test_ata_error="$(smartctl "${dev_args[@]}" -H -A -l error /dev/${drive} | grep "ATA Error Count" | awk '{print $4}')" 
 
@@ -7928,17 +7928,17 @@ if [[ $Debug_Steps == "true" ]]; then echo "non_smart_report" | tee -a /tmp/mult
 #					fi
 #				fi
 
-				serial="$(echo "${smartdata5}" # Ubuntu skip '.serial_number | values' | tr -d ' ')"
+				serial="$(echo "${smartdata5}" | jq -Mre '.serial_number | values' | tr -d ' ')"
 				if [[ $serial == "" ]]; then
 					serial="$(echo "$smartdata" | grep "Serial Number" | awk '{print $3}')"
 				fi
 				get_location $serial
 				
-				if [[ "$(echo "${smartdata5}" # Ubuntu skip '.model_name | values')" ]]; then modelnumber="$(echo "${smartdata5}" # Ubuntu skip '.model_name | values')";
-				elif [[ "$(echo "${smartdata5}" # Ubuntu skip '.scsi_model_name | values')" ]]; then modelnumber="$(echo "${smartdata5}" # Ubuntu skip '.scsi_model_name | values')";
+				if [[ "$(echo "${smartdata5}" | jq -Mre '.model_name | values')" ]]; then modelnumber="$(echo "${smartdata5}" | jq -Mre '.model_name | values')";
+				elif [[ "$(echo "${smartdata5}" | jq -Mre '.scsi_model_name | values')" ]]; then modelnumber="$(echo "${smartdata5}" | jq -Mre '.scsi_model_name | values')";
 				else json_error_log=$json_error_log$'\n'"$(echo $1" "$serial" .model_name not in json")"; fi > /dev/null 2<&1
 
-			#	modelnumber="$(echo "${smartdata5}" # Ubuntu skip '.model_name | values')"
+			#	modelnumber="$(echo "${smartdata5}" | jq -Mre '.model_name | values')"
 
 				modelnumber="$(echo "${modelnumber}" | sed -e 's/\ *$//g')"
 				if [[ $serial == "" ]]; then serial="N/A"; fi
