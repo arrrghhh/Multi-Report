@@ -1103,6 +1103,18 @@ physmem=$physmem$memunit
 uptime_raw=$(cat /proc/uptime 2>/dev/null | awk '{print int($1)}')
 uptime_days=$((uptime_raw / 86400))
 uptime_hours=$(((uptime_raw % 86400) / 3600))
+if [[ $uptime_days -gt 0 ]]; then
+  uptime="$uptime_days Days, $uptime_hours Hours"
+else
+  uptime="$uptime_hours Hours"
+fi
+
+# TrueNAS (CORE or SCALE) is the only platform with the middleware config DB.
+if [[ -f /etc/version ]] && [[ -f /data/freenas-v1.db ]]; then
+  is_truenas="true"
+else
+  is_truenas="false"
+fi
 	
 if [[ $softver != "Linux" ]]; then
   top -d1 | head -n 7 > /tmp/memory_free.txt
@@ -1130,17 +1142,22 @@ else
   swapused=$(free -h | grep "Swap:" | awk '{printf $3}')
   swaptotal=$(free -h | grep "Swap:" | awk '{printf $2}')
   
-  IFS=',' read -ra ADDR <<< "$TrueNAS_Version_Names"
-	for i in "${ADDR[@]}"; do
-		Ver_number="$(echo $i | cut -d':' -f 1 | cut -c1-5)"
-		truenas_ver_first_four=$(grep VERSION_ID /etc/os-release 2>/dev/null | cut -d\" -f2 | cut -c1-5)
-		if [[ "$Ver_number" == "$truenas_ver_first_four" ]]; then
-			truenas_ver_name="$(echo $i | cut -d':' -f 2)"
-		fi
-	done		
-		
-  programver=$progname$progverdate" (TrueNAS SCALE - $truenas_ver_name $truenas_ver)"
-  programver2="Ubuntu_$(grep VERSION_ID /etc/os-release | cut -d\" -f2 | cut -d. -f1,2)"
+  if [[ "$is_truenas" == "true" ]]; then
+    IFS=',' read -ra ADDR <<< "$TrueNAS_Version_Names"
+    for i in "${ADDR[@]}"; do
+      Ver_number="$(echo $i | cut -d':' -f 1 | cut -c1-5)"
+      truenas_ver_first_four=$(grep VERSION_ID /etc/os-release 2>/dev/null | cut -d\" -f2 | cut -c1-5)
+      if [[ "$Ver_number" == "$truenas_ver_first_four" ]]; then
+        truenas_ver_name="$(echo $i | cut -d':' -f 2)"
+      fi
+    done
+    programver=$progname$progverdate" (TrueNAS SCALE - $truenas_ver_name $truenas_ver)"
+  else
+    linux_pretty_name="$(grep '^PRETTY_NAME=' /etc/os-release 2>/dev/null | cut -d'=' -f2- | tr -d '\"')"
+    if [[ -z "$linux_pretty_name" ]]; then linux_pretty_name="Linux"; fi
+    programver=$progname$progverdate" ($linux_pretty_name)"
+  fi
+  programver2="$(grep VERSION_ID /etc/os-release | cut -d\" -f2 | cut -d. -f1,2)"
   programver3="$(grep VERSION_ID /etc/os-release | cut -d\" -f2)"
   if [[ $swaptotal == "0B" ]]; then
     programver4="Total Memory: "$totalmem", Used Memory: "$usedmem", Free Memory: "$freemem"<br>System Uptime: "$uptime
@@ -2288,7 +2305,7 @@ SMART_check_status ()
     if [[ $softver != "Linux" ]]; then
 		smart_act=$(sysctl -n kern.disks)
 	else
-		smart_act=$(fdisk -l 2>/dev/null | grep "Disk /dev/sd" | cut -c 11-15 | cut -d ":" -f1 | tr '\n' ' ') > /dev/null 2<&1
+		smart_act=$(lsblk -dn -o NAME,TYPE 2>/dev/null | awk '$2=="disk" {print $1}' | tr '\n' ' ') > /dev/null 2<&1
 	fi
 	smart_act=$(echo "$smart_act" | sed 's/nvd/nvme/g')
 	smart_act="${smart_act//cd0/}"
@@ -2337,7 +2354,7 @@ if [[ $Debug_Steps == "true" ]]; then echo "SMART_activate"; fi
     if [[ $softver != "Linux" ]]; then
 		smart_act=$(sysctl -n kern.disks)
 	else
-		smart_act=$(fdisk -l 2>/dev/null | grep "Disk /dev/sd" | cut -c 11-15 | cut -d ":" -f1 | tr '\n' ' ') > /dev/null 2<&1
+		smart_act=$(lsblk -dn -o NAME,TYPE 2>/dev/null | awk '$2=="disk" {print $1}' | tr '\n' ' ') > /dev/null 2<&1
 	fi
 	smart_act=$(echo "$smart_act" | sed 's/nvd/nvme/g')
 	smart_act="${smart_act//cd0/}" 
@@ -2468,6 +2485,10 @@ if [[ $Debug_Steps == "true" ]]; then echo "get_API_Drives_and_tar"; fi
     increment=0        # INCREMENT IS THE ACCESS TO THE FULL ARRAY, INCLUDING VIRTUAL AND CD DRIVES
     skip_drives_count=0
 
+    if [[ "$is_truenas" != "true" ]]; then
+        echo "This option requires TrueNAS middleware (midclt)."
+        exit 1
+    fi
     Drive_Disk_Query=$(midclt call disk.query)
 
     # 1. Get all API data in a variable, one call. -- Can we find API that says SMART Self-test is supported or not?  May need to use smartctl for one thing.
@@ -3683,9 +3704,14 @@ if [[ $Debug_Steps == "true" ]]; then echo "load_config" | tee -a /tmp/multi_rep
 			return
 		fi
 	fi
-	if [[ $truenas_ver > 24.10.0.2 ]]; then
+	if [[ "$is_truenas" == "true" ]]; then
+		if [[ $truenas_ver > 24.10.0.2 ]]; then
 #	"TrueNAS does not support (pseudo) sendmail function, using sendemail.py to send your email."
-		truenas_sendmail_support="No"
+			truenas_sendmail_support="No"
+		fi
+	else
+		# Generic Linux: use the local sendmail/msmtp transport.
+		truenas_sendmail_support="Yes"
 	fi
 
 	}
@@ -4578,6 +4604,7 @@ sendemail_retry_delay=120
 
 config_backup () {
 if [[ $Debug_Steps == "true" ]]; then echo "config_backup" | tee -a /tmp/multi_report_debug.txt; fi
+	if [[ "$is_truenas" != "true" ]]; then return; fi
 	if [[ "$Monitor" == "true" ]]; then return; fi
 
 ###### Config backup (if enabled)
@@ -4743,9 +4770,11 @@ if [[ $Debug_Steps == "true" ]]; then echo "dump_drive_data $drive" | tee -a /tm
 		fi
 		# Get all the data, NVMe may not produce results until TrueNAS has incorporated the middleware.
 
-		if [[ $(midclt call disk.smart_attributes $drive | jq | grep "python") == "" ]]; then
-			midclt call disk.smart_attributes $drive | jq > "/tmp/${tempfilepath}${drivetype}_${drive}_${serial1}_API.jso"
-		fi > /dev/null 2<&1
+		if type midclt &> /dev/null; then
+			if [[ $(midclt call disk.smart_attributes $drive | jq | grep "python") == "" ]]; then
+				midclt call disk.smart_attributes $drive | jq > "/tmp/${tempfilepath}${drivetype}_${drive}_${serial1}_API.jso"
+			fi > /dev/null 2<&1
+		fi
 
 		if test -e "/tmp/${tempfilepath}${drivetype}_${drive}_${serial1}_API.jso"; then
 			if [[ "$truenas_sendmail_support" == "No" ]]; then
@@ -8401,7 +8430,9 @@ if [[ $Debug_Steps == "true" ]]; then echo "attach_files" | tee -a /tmp/multi_re
 				fi
 			fi
 ##### THE NEXT LINE IS NOT LIKED BY 25.04 BUILD 14 JANUARY 2025
-			$(midclt call smart.test.results | jq > "/tmp/smart_results_all_drives_API.jso")
+			if type midclt &> /dev/null; then
+				$(midclt call smart.test.results | jq > "/tmp/smart_results_all_drives_API.jso")
+			fi
 
 			if test -e "/tmp/smart_results_API.jso"; then
 				if [[ "$truenas_sendmail_support" == "No" ]]; then
@@ -14976,7 +15007,6 @@ else
 	lsblk
 	md5sum
 	sha256sum
-	nvme
 	)
 fi
 
@@ -15004,7 +15034,6 @@ hostname
 if
 jq
 ln
-midclt
 mkdir
 mount
 printf
@@ -15019,7 +15048,6 @@ shopt
 sleep
 smartctl
 sort
-sqlite3
 tail
 tar
 test
@@ -15038,6 +15066,9 @@ zpool
 
 auxillary_commands=( # Auxiliary Commands - Just the basic commands I expect anyone to have
 awk
+midclt
+nvme
+sqlite3
 )
 
 datestamp2=$(date +%Y-%m-%d)
@@ -15065,7 +15096,7 @@ done
 for command in "${auxillary_commands[@]}"; do
 	if ! type "${command}" &> /dev/null; then
 		echo "'${command}' You either do not have elevated privileges (like root) or an AUXILLARY file is missing." >&2
-		exit 1
+		continue
 	fi
 done
 
