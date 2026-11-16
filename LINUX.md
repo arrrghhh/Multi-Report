@@ -218,7 +218,7 @@ Run as root, since `smartctl` needs it for most attributes:
 Expected report header on the test machine:
 
 ```
-Multi-Report v3.34.1 dtd:2026-11-16 (Ubuntu 26.04.1 LTS)
+Multi-Report v3.34.2 dtd:2026-11-16 (Ubuntu 26.04.1 LTS)
 ```
 
 ## Known limitations

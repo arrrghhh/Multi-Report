@@ -4,10 +4,10 @@ LANG="en_US.UTF-8"
 if [[ $TERM == "dumb" ]]; then          # Set a terminal as the script may generate an error message if using 'dumb'.
     export TERM=unknown
 fi
-##### Version 1.09.1
+##### Version 1.09.2
 
 Program_Name="drive_selftest.sh"
-Version="1.09.1"                          # Current version of the script (MAJOR.MINOR.FORK)
+Version="1.09.2"                          # Current version of the script (MAJOR.MINOR.FORK)
 Version_Date="(16 November 2026)"
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
@@ -58,14 +58,21 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 # Change Log
 
+# Version 1.09.2 (16 Nov 2026)  -- Linux fork
+#
+# - -no_test no longer reports "Drive did not accept the smartctl command" for
+#   every drive.  No smartctl command is issued in that mode, so there is no
+#   result to report and the CSV is left untouched.
+#
 # Version 1.09.1 (16 Nov 2026)  -- Linux fork
 #
 # - Linux/Ubuntu support.  The script no longer assumes TrueNAS; it runs on any
 #   Linux with smartmontools, jq, lsblk and (optionally) ZFS.
 # - OS version string is read from /etc/os-release (PRETTY_NAME) on generic Linux.
 # - TrueNAS is detected as /etc/version + /data/freenas-v1.db, same as Multi-Report.
-# - Drive list is built from `lsblk` intersected with `smartctl --scan-open`
-#   instead of the TrueNAS middleware (`midclt`), so no middleware is required.
+# - Drive list is built from `smartctl --scan-open` (with `lsblk` supplying model
+#   and serial) instead of the TrueNAS middleware (`midclt`), so no middleware is
+#   required.
 # - Pool list is built from `zpool status -LP` (scrub/resilver state and time
 #   remaining included) instead of `midclt call pool.query`.
 # - Each drive's smartctl interface is probed once and cached.  This matters on
@@ -1241,6 +1248,10 @@ smartctlscan=$(smartctl --scan-open)
                 if [[ $timer_flag -eq 1 ]]; then echo "                    Drive: $drive in $1 Test"; fi | tee -a /tmp/drive_selftest/drive_test_temp.txt
                 test_running=1    # Looks like the testing is in progress.
                 No_Tests="false"
+            elif [[ $No_Test == "true" ]]; then
+                # >>> LINUX PORT: -no_test issues no smartctl command, so the placeholder
+                # result is not a failure.  Report nothing and leave the CSV untouched.
+                test_running=0
             else
                 if [[ $timer_flag -eq 1 ]]; then echo "                    An error occurred for Drive: $drive in $1 Test."; fi | tee -a /tmp/drive_selftest/drive_test_temp.txt
                 if echo $smart_test_ok | grep -i -e "remaining" -e "completed" > /dev/null 2<&1; then

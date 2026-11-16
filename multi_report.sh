@@ -2,7 +2,7 @@
 # shellcheck disable=SC1075,SC2027,SC2034,SC2128,SC2002,SC2004,SC2086,SC2162
 LANG="en_US.UTF-8"
 
-##### Version 3.34.1
+##### Version 3.34.2
 
 ###### Get Config File Name and Location
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
@@ -86,6 +86,13 @@ fi
 # Version
 ### Changelog:
 
+# V3.34.2 (16 November 2026) -- Linux fork
+#
+# - Do not warn about missing `midclt`, `nvme` or `sqlite3` on generic Linux; their
+#   absence is expected there.  The warning is kept on TrueNAS.
+# - Report the mail transport accurately on Linux ("local sendmail transport")
+#   instead of claiming the TrueNAS sendmail function.
+#
 # V3.34.1 (16 November 2026) -- Linux fork
 #
 # - Linux support.  This is a fork of JoeSchmuck's Multi-Report that runs on a
@@ -1119,7 +1126,7 @@ logfile_header="/tmp/${tempfilepath}smart_report_header.tmp"
 logfile_temp="/tmp/${tempfilepath}smart_report_temp.tmp"
 boundary="gc0p4Jq0M2Yt08jU534c0p"
 
-CurrentFilename="multi_report_v3.34.1_2026_11_16.sh"
+CurrentFilename="multi_report_v3.34.2_2026_11_16.sh"
 valid_config_version_date="2026-03-30"	# Configuration file valid date
 progverdate="$(echo $CurrentFilename | cut -d '_' -f4,5,6 | cut -d '.' -f1 | sed -r 's/[_]+/-/g')"
 progname="Multi-Report "$(echo $CurrentFilename | cut -d '_' -f3)" dtd:"
@@ -4569,7 +4576,14 @@ if ! test -e "/tmp/attachment.json"; then touch "/tmp/attachment.json"; touch "/
 	fi
 
 	if [[ $truenas_sendmail_support == "Yes" ]]; then
-		echo "Using TrueNAS sendmail function"
+		# >>> LINUX PORT: on generic Linux this is the host's own sendmail/msmtp
+		# transport, not a TrueNAS feature.
+		if [[ $is_truenas == "true" ]]; then
+			echo "Using TrueNAS sendmail function"
+		else
+			echo "Using local sendmail transport (msmtp/sendmail)"
+		fi
+		# <<< LINUX PORT
 		sendmail -t -oi < "$logfile_header"		# I have no idea if the format will be good or not.
 	else
 		echo "Using sendemail.py"
@@ -15138,10 +15152,16 @@ done
 # Test if the auxillary_commands are usable
 for command in "${auxillary_commands[@]}"; do
 	if ! type "${command}" &> /dev/null; then
+		# >>> LINUX PORT: midclt, nvme and sqlite3 are TrueNAS-only.  Their absence on
+		# generic Linux is expected, so do not warn about it.
+		if [[ $is_truenas != "true" ]] && [[ "$command" == "midclt" || "$command" == "nvme" || "$command" == "sqlite3" ]]; then
+			continue
+		fi
 		echo "'${command}' You either do not have elevated privileges (like root) or an AUXILLARY file is missing." >&2
 		continue
 	fi
 done
+# <<< LINUX PORT
 
 if ! [[ "$1" == "-config" || "$1" == "-help" || "$1" == "-delete" || "$1" == "-s" || "$1" == "" || "$1" == "-dump" || "$1" == "-purge" || "$1" == "-h" || "$1" == "-t" || "$1" == "-m" || "$1" == "-u7zip" || "$1" == "-update" || "$1" == "-update_selftest" || "$1" == "-update_sendemail" || "$1" == "-update_smr" || "$1" == "-update_all" || "$1" == "-ignore_lock" || "$1" == "-cleanup" || "$1" == "-scsismart" || "$1" == "-update_smr" || "$1" == "-check_smr"  || "$1" == "-disable_smr" || "$1" == "-enable_smr" || "$1" == "-disable_smr_alarm" || "$1" == "-enable_smr_alarm" || "$1" == "-disable_farm" || "$1" == "-enable_farm" || "$1" == "-tardrivedata"  || "$1" == "-test_sendemail" || "$1" == "-check_for_updates" || "$1" == "-update_render" || "$1" == "-dev" || "$1" == "-debug_sendemail" || "$1" == "-report_only" || "$1" == "-no_test" ]]; then
 	echo '"'$1'" is not a valid option.'
