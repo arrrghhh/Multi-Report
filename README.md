@@ -1,50 +1,111 @@
-# Multi-Report and Drive-Selftest for TrueNAS 13+ Core/Scale
+# Multi-Report and Drive-Selftest — Linux fork
 
-Bug-Fix - Multi-Report version 3.32
+This is a fork of [JoeSchmuck/Multi-Report](https://github.com/JoeSchmuck/Multi-Report),
+which was written for TrueNAS CORE and SCALE. The original scripts, report design and
+documentation are **Joe Schmuck's** (joeschmuck), with contributions from Bidule0hm,
+melp, toomuchdata, Basil Hendroff and Oxyde. This fork keeps that work intact and adds
+support for running the same scripts on a plain Linux host.
 
-CHANGE LOG
-V3.32 (19 October 2026)
+- Upstream: https://github.com/JoeSchmuck/Multi-Report
+- This fork: https://github.com/arrrghhh/Multi-Report
 
-- Maintenance Release
-- Updated to use the full file path for disklayout_config.json and the related .html files.
-- Fixed the Last Extended Test POH in the SMART Report Section.
-- Updated `dev_args` GREP command to fix reading sdaa, sdab... (Thanks Aleksey K.)
-- Fixed TLER not being set.
-- Changed the Disk Layout tracking to use pcie values, json file update to version "0.4".
+## What the scripts do
 
-==============================================================================
+`multi_report.sh` builds a status report for your ZFS pools and drives — health, SMART
+attributes, temperatures, test history — and emails it to you.
 
-New in Multi-Report Version 3
+`drive_selftest.sh` is the companion scheduler that runs SMART short and long
+self-tests on a routine basis. It can run standalone without Multi-Report.
 
-This script will perform five main functions:
-1) Generate a report and send an email on your drive(s) status. 
-2) Create a copy of your TrueNAS Config File and attach to the same email. 
-3) Create a statistical database and attach to the same email.
-4) Test the drives on a routine basis.
-5) Check drives for being SMR or Seagate Drive Flood SCAM by China.
+## What this fork adds
 
-In version 3.1 I have removed drive testing from the Multi-Report script
-and move testing into it's own script.  This makes it easy to remove
-when TrueNAS fully supports NVMe SMART testing, and makes it easier
-for me up modify/update.
+- **Runs on generic Linux.** TrueNAS is detected at runtime (`/etc/version` plus
+  `/data/freenas-v1.db`); on TrueNAS the original code paths run unchanged.
+- **No hard TrueNAS dependencies on Linux.** `midclt`, `nvme` and `sqlite3` are used
+  only when present. The config backup, `-tardrivedata` and the disk-layout editor
+  remain TrueNAS-only.
+- **Drive list from `smartctl --scan-open`**, with per-drive `-d` probing because the
+  scan reports `-d scsi` for most SATA disks, which cannot read SMART.
+- **Long tests stay out of the way of a scrub.** By default a colliding long test is
+  replaced by a short test; `SCRUB_Minutes_Remaining="0"` suspends testing entirely
+  for drives in a scrubbing pool.
+- **Updates come from this fork**, fetching the `.sh` files directly instead of the
+  `.txt` copies.
+- **Three-part versions** (`MAJOR.MINOR.FORK`) so fork-only fixes reach installed
+  copies.
 
-The new drive testing script is called "Drive-Selftest".  It was designed
-to schedule both Short and Long drive test scheduling without much effort
-form the end user.  This will prove to be very valuable if you have a
-large quantity of drives in your system.
+Only Ubuntu 26.04 LTS has been tested. Other distributions should work, but that is a
+design intent, not a claim.
 
-Other functions include Updates Notification and is highly customizable.
-A User Guide exists (needs a bit of updating).
+## Install
 
-# Drive Self-test for TrueNAS
+```sh
+mkdir -p /opt/Multi-Report
+install -m 755 multi_report.sh drive_selftest.sh /opt/Multi-Report/
+cd /opt/Multi-Report
+./multi_report.sh -config     # create multi_report_config.txt
+./multi_report.sh             # run a report
+```
 
-New in Drive-Selftest Version 1
+`drive_selftest.sh` can be run by hand:
 
-Drive Self-test is a new script specifically to perform the SMART testing.
-The SMART testing was removed from Multi-Report placed in this script.
-This script has many benefits being a seperate script:
-1) Easier to maintain.
-2) Run standalone without Multi-Report.
-3) Schedules both Short and Long tests to be accomplished Daily, Weekly, and/or Monthly.
-4) Can schedule over 1000 drives to be tested (OMG!).
-5) Able to test ONLY NVMe while TrueNAS is not able to schedule NVMe SMART tests in the GUI.
+```sh
+./drive_selftest.sh -demo     # show what it would do, change nothing
+./drive_selftest.sh -no_test  # full pass with tests skipped
+./drive_selftest.sh           # normal run
+./drive_selftest.sh -help     # list switches
+```
+
+Both scripts keep their config, logs and statistics database in their own directory, so
+keep them together.
+
+### Requirements
+
+`bash`, `curl`, `jq`, `smartmontools`, `zfsutils-linux`, `util-linux` (`lsblk`), and a
+local mail transport (sendmail, msmtp or equivalent). Run as root — `smartctl` needs it
+for most attributes.
+
+### Scheduling
+
+```
+# Multi-Report daily at 04:10
+10 4 * * *  root  cd /opt/Multi-Report && ./multi_report.sh > /dev/null 2>&1
+
+# Drive-Selftest daily at 03:10; it decides which drives are due
+10 3 * * *  root  cd /opt/Multi-Report && ./drive_selftest.sh > /dev/null 2>&1
+```
+
+For long tests, one drive per week rotating through the array is a reasonable default:
+
+```
+Long_Test_Mode="1"
+Long_Drives_Test_Period="Month"
+Long_Drives_to_Test_Per_Day="1"
+Long_Drives_Tested_Days_of_the_Week="1"
+```
+
+Pick a weekday that does not collide with your scrub. On Ubuntu, `zfsutils-linux`
+scrubs on the second Sunday of the month, so Monday is a safe choice.
+
+## Updating
+
+```
+./multi_report.sh -update           # Multi-Report
+./multi_report.sh -update_selftest  # Drive-Selftest
+./multi_report.sh -update_all       # everything
+```
+
+Third-party helpers (`smr-check.sh`, `sendemail.py`, `render_case.py`) still come from
+their own upstream projects. `main` is the released branch; development happens on
+`linux`.
+
+## More documentation
+
+- `LINUX.md` — porting notes, platform detection, merge workflow
+- `Multi_Report_User_Guide.pdf`, `Multi_Report_Quick_Start_Guide.pdf`,
+  `Drive_Selftest_User_Guide.pdf` — upstream documentation, still applies
+- `multi_report.txt` and `drive_selftest.txt` are upstream's TrueNAS copies. Ignore
+  them on Linux; use the `.sh` files.
+
+If you are on TrueNAS, use upstream. This fork exists for people running the same
+hardware and pools on a plain Linux distribution.
