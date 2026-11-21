@@ -5281,7 +5281,8 @@ if [[ $Debug_Steps == "true" ]]; then echo "zpool_report" | tee -a /tmp/multi_re
 		if [ "$writeErrors" != "0" ]; then writeErrorsColor="$warnColor"; logfile_warning=$logfile_warning"$(echo "Pool: $pool - Scrub Write Errors<br>")"; else writeErrorsColor="$bgColor"; fi
 		if [ "$cksumErrors" != "0" ]; then cksumErrorsColor="$warnColor"; logfile_warning=$logfile_warning"$(echo "Pool: $pool - Scrub Cksum Errors<br>")"; else cksumErrorsColor="$bgColor"; fi
 		if [ "$used" -ge "$PoolUsedWarn" ]; then usedColor="$warnColor"; logfile_warning=$logfile_warning"$(echo "Pool: $pool - ZFS Used Space > $PoolUsedWarn%<br>")"; else usedColor="$bgColor"; fi
-		if [ "$scrubRepBytes" != "$Non_Exist_Value" ] && [ "$scrubRepBytes" != "0" ] && ! [ "$(echo "$scrubRepBytesfull" | grep "Resilvered")" ]; then scrubRepBytesColor="$warnColor"; logfile_warning=$logfile_warning"$(echo "Pool: $pool - Scrub Rep Bytes<br>")"; else scrubRepBytesColor="$bgColor"; fi
+		# Linux zpool emits e.g. "0B"; TrueNAS builds strip the unit. Treat zero-with-unit as zero.
+		if [ "$scrubRepBytes" != "$Non_Exist_Value" ] && [[ ! "$scrubRepBytes" =~ ^0[BKMGTPE]?$ ]] && ! [ "$(echo "$scrubRepBytesfull" | grep "Resilvered")" ]; then scrubRepBytesColor="$warnColor"; logfile_warning=$logfile_warning"$(echo "Pool: $pool - Scrub Rep Bytes<br>")"; else scrubRepBytesColor="$bgColor"; fi
 		if [ "$scrubErrors" != "$Non_Exist_Value" ] && [ "$scrubErrors" != "0" ]; then scrubErrorsColor="$warnColor"; logfile_critical=$logfile_critical"$(echo "Pool: $pool - Scrub Errors<br>")"; else scrubErrorsColor="$bgColor"; fi
 		if [ "$(echo "$scrubAge" | awk '{print int($1)}')" -ge "$ScrubAgeWarn" ]; then scrubAgeColor="$warnColor"; logfile_warning=$logfile_warning"$(echo "Pool: $pool - Scrub Age > $ScrubAgeWarn days<br>")"; else scrubAgeColor="$bgColor"; fi
 		if [ "$scrubAge" == "In Progress" ]; then scrubAgeColor="$blueColor"; fi
